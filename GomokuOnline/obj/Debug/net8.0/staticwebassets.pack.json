@@ -13,6 +13,10 @@
       "PackagePath": "staticwebassets\\favicon.ico"
     },
     {
+      "Id": "C:\\Users\\truon\\source\\repos\\GomokuOnline\\GomokuOnline\\wwwroot\\js\\signalr-client.js",
+      "PackagePath": "staticwebassets\\js\\signalr-client.js"
+    },
+    {
       "Id": "C:\\Users\\truon\\source\\repos\\GomokuOnline\\GomokuOnline\\wwwroot\\js\\site.js",
       "PackagePath": "staticwebassets\\js\\site.js"
     },

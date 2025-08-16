@@ -15,11 +15,14 @@ namespace GomokuOnline.Repositories.Implementations
         {
             return await _dbSet
                 .Include(g => g.GameRoom)
+                    .ThenInclude(gr => gr.Participants)
+                        .ThenInclude(p => p.User)
                 .Include(g => g.WinnerUser)
                 .Include(g => g.CurrentTurnUser)
                 .Include(g => g.Moves)
                     .ThenInclude(m => m.User)
                 .Include(g => g.GameStates)
+                .AsSplitQuery() // Split query to avoid circular references
                 .FirstOrDefaultAsync(g => g.Id == gameId);
         }
 
@@ -49,6 +52,20 @@ namespace GomokuOnline.Repositories.Implementations
 
         public async Task<Game?> CreateGameAsync(int gameRoomId, int boardSize, int winCondition)
         {
+            // Lấy danh sách người chơi trong phòng
+            var participants = await _context.GameParticipants
+                .Where(p => p.GameRoomId == gameRoomId && p.Type == ParticipantType.Player)
+                .OrderBy(p => p.PlayerOrder)
+                .ToListAsync();
+
+            if (!participants.Any())
+            {
+                throw new InvalidOperationException("Không có người chơi nào trong phòng");
+            }
+
+            // Người chơi đầu tiên (PlayerOrder = 1) sẽ chơi trước
+            var firstPlayer = participants.FirstOrDefault(p => p.PlayerOrder == 1) ?? participants.First();
+
             var game = new Game
             {
                 GameRoomId = gameRoomId,
@@ -56,7 +73,8 @@ namespace GomokuOnline.Repositories.Implementations
                 WinCondition = winCondition,
                 StartedAt = DateTime.UtcNow,
                 Status = GameStatus.InProgress,
-                TotalMoves = 0
+                TotalMoves = 0,
+                CurrentTurnUserId = firstPlayer.UserId // Thiết lập người chơi đầu tiên
             };
 
             await _dbSet.AddAsync(game);
@@ -104,6 +122,16 @@ namespace GomokuOnline.Repositories.Implementations
 
             await UpdateAsync(game);
             return true;
+        }
+
+        public async Task<List<GameRoom>> GetAllRoomsAsync()
+        {
+            return await _context.GameRooms
+                .Include(r => r.Participants)
+                .Include(r => r.CreatedByUser)
+                .Include(r => r.Games)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
         }
     }
 }

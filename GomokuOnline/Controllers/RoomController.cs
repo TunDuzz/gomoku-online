@@ -125,27 +125,44 @@ namespace GomokuOnline.Controllers
             return View(room);
         }
 
+        public class JoinRoomRequest
+        {
+            public int RoomId { get; set; }
+            public string? Password { get; set; }
+        }
+
+        public class RoomIdRequest
+        {
+            public int RoomId { get; set; }
+        }
+
+        public class SetReadyRequest
+        {
+            public int RoomId { get; set; }
+            public bool IsReady { get; set; }
+        }
+
         [HttpPost]
-        public async Task<IActionResult> Join(int roomId, string password = null)
+        public async Task<IActionResult> Join([FromBody] JoinRoomRequest request)
         {
             var userId = GetCurrentUserId();
             if (userId == 0) return Json(new { success = false, message = "Chưa đăng nhập" });
 
             try
             {
-                var room = await _context.GameRooms.FindAsync(roomId);
+                var room = await _context.GameRooms.FindAsync(request.RoomId);
                 if (room == null)
                 {
                     return Json(new { success = false, message = "Phòng không tồn tại" });
                 }
 
-                if (room.IsPrivate && room.Password != password)
+                if (room.IsPrivate && room.Password != request.Password)
                 {
                     return Json(new { success = false, message = "Mật khẩu phòng không đúng" });
                 }
 
                 var existingParticipant = await _context.GameParticipants
-                    .FirstOrDefaultAsync(p => p.UserId == userId && p.GameRoomId == roomId);
+                    .FirstOrDefaultAsync(p => p.UserId == userId && p.GameRoomId == request.RoomId);
 
                 if (existingParticipant != null)
                 {
@@ -153,7 +170,7 @@ namespace GomokuOnline.Controllers
                 }
 
                 var participantCount = await _context.GameParticipants
-                    .CountAsync(p => p.GameRoomId == roomId && p.Type == ParticipantType.Player);
+                    .CountAsync(p => p.GameRoomId == request.RoomId && p.Type == ParticipantType.Player);
 
                 if (participantCount >= room.MaxPlayers)
                 {
@@ -163,7 +180,7 @@ namespace GomokuOnline.Controllers
                 var participant = new GameParticipant
                 {
                     UserId = userId,
-                    GameRoomId = roomId,
+                    GameRoomId = request.RoomId,
                     Type = ParticipantType.Player,
                     JoinedAt = DateTime.UtcNow,
                     IsReady = false,
@@ -183,7 +200,7 @@ namespace GomokuOnline.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Leave(int roomId)
+        public async Task<IActionResult> Leave([FromBody] RoomIdRequest request)
         {
             var userId = GetCurrentUserId();
             if (userId == 0) return Json(new { success = false, message = "Chưa đăng nhập" });
@@ -191,7 +208,7 @@ namespace GomokuOnline.Controllers
             try
             {
                 var participant = await _context.GameParticipants
-                    .FirstOrDefaultAsync(p => p.UserId == userId && p.GameRoomId == roomId);
+                    .FirstOrDefaultAsync(p => p.UserId == userId && p.GameRoomId == request.RoomId);
 
                 if (participant == null)
                 {
@@ -210,7 +227,7 @@ namespace GomokuOnline.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> StartGame(int roomId)
+        public async Task<IActionResult> StartGame([FromBody] RoomIdRequest request)
         {
             var userId = GetCurrentUserId();
             if (userId == 0) return Json(new { success = false, message = "Chưa đăng nhập" });
@@ -219,7 +236,8 @@ namespace GomokuOnline.Controllers
             {
                 var room = await _context.GameRooms
                     .Include(r => r.Participants)
-                    .FirstOrDefaultAsync(r => r.Id == roomId);
+                        .ThenInclude(p => p.User)
+                    .FirstOrDefaultAsync(r => r.Id == request.RoomId);
 
                 if (room == null)
                 {
@@ -231,24 +249,31 @@ namespace GomokuOnline.Controllers
                     return Json(new { success = false, message = "Chỉ chủ phòng mới có thể bắt đầu game" });
                 }
 
-                var players = room.Participants
-                    .Where(p => p.Type == ParticipantType.Player && p.IsReady)
+                var allPlayers = room.Participants
+                    .Where(p => p.Type == ParticipantType.Player)
                     .ToList();
 
-                if (players.Count < 2)
+                if (allPlayers.Count < 2)
                 {
                     return Json(new { success = false, message = "Cần ít nhất 2 người chơi để bắt đầu" });
                 }
 
+                var readyPlayers = allPlayers.Where(p => p.IsReady).ToList();
+                if (readyPlayers.Count < allPlayers.Count)
+                {
+                    var notReadyPlayers = allPlayers.Where(p => !p.IsReady).Select(p => p.User.Username).ToList();
+                    return Json(new { success = false, message = $"Các người chơi sau chưa sẵn sàng: {string.Join(", ", notReadyPlayers)}" });
+                }
+
                 // Tạo game mới
-                var game = await _gameRepository.CreateGameAsync(roomId, room.BoardSize, room.WinCondition);
+                var game = await _gameRepository.CreateGameAsync(request.RoomId, room.BoardSize, room.WinCondition);
                 if (game != null)
                 {
                     room.Status = RoomStatus.Playing;
                     room.StartedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
 
-                    return Json(new { success = true, gameId = game.Id });
+                    return Json(new { success = true, gameId = game.Id, redirectUrl = $"/Game/Room/{game.Id}" });
                 }
 
                 return Json(new { success = false, message = "Không thể tạo game" });
@@ -256,6 +281,62 @@ namespace GomokuOnline.Controllers
             catch (Exception ex)
             {
                 return Json(new { success = false, message = "Đã xảy ra lỗi" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SetReady([FromBody] SetReadyRequest request)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == 0) return Json(new { success = false, message = "Chưa đăng nhập" });
+
+            try
+            {
+                var participant = await _context.GameParticipants
+                    .FirstOrDefaultAsync(p => p.UserId == userId && p.GameRoomId == request.RoomId);
+
+                if (participant == null)
+                {
+                    return Json(new { success = false, message = "Bạn chưa ở trong phòng này" });
+                }
+
+                participant.IsReady = request.IsReady;
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, isReady = participant.IsReady });
+            }
+            catch (Exception)
+            {
+                return Json(new { success = false, message = "Đã xảy ra lỗi" });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetParticipants(int roomId)
+        {
+            try
+            {
+                var participants = await _context.GameParticipants
+                    .Include(p => p.User)
+                    .Include(p => p.GameRoom)
+                    .Where(p => p.GameRoomId == roomId)
+                    .OrderBy(p => p.PlayerOrder)
+                    .Select(p => new
+                    {
+                        userId = p.UserId,
+                        username = p.User.Username,
+                        isReady = p.IsReady,
+                        isOwner = p.GameRoom.CreatedByUserId == p.UserId,
+                        playerOrder = p.PlayerOrder,
+                        playerColor = p.PlayerColor
+                    })
+                    .ToListAsync();
+
+                return Json(new { success = true, participants });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Lỗi khi lấy danh sách người chơi" });
             }
         }
 

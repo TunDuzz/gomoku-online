@@ -34,8 +34,16 @@ builder.Services.AddScoped<IGameRepository, GameRepository>();
 // Add Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// Add SignalR
+builder.Services.AddSignalR();
+
 // Add other services
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.MaxDepth = 32;
+    });
 
 var app = builder.Build();
 
@@ -57,5 +65,9 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+// Map SignalR Hubs
+app.MapHub<GomokuOnline.Hubs.GameHub>("/gameHub");
+app.MapHub<GomokuOnline.Hubs.RoomHub>("/roomHub");
 
 app.Run();

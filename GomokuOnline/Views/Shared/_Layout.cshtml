@@ -36,16 +36,6 @@
                                     <i class="fas fa-gamepad me-1"></i>Game
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-area="" asp-controller="Room" asp-action="Index">
-                                    <i class="fas fa-list me-1"></i>Phòng chơi
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-white" asp-area="" asp-controller="Room" asp-action="Create">
-                                    <i class="fas fa-plus me-1"></i>Tạo phòng
-                                </a>
-                            </li>
                         }
                     </ul>
                     <ul class="navbar-nav">
@@ -120,6 +110,9 @@
     
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SignalR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+    <script src="~/js/signalr-client.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

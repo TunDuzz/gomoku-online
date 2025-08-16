@@ -1,0 +1,167 @@
+@model GomokuOnline.ViewModels.Game.CreateRoomViewModel
+@{
+    ViewData["Title"] = "Tạo phòng mới - Gomoku Online";
+    Layout = "_Layout";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white text-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>
+                        Tạo phòng mới
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create" method="post">
+                        <!-- Tên phòng -->
+                        <div class="mb-3">
+                            <label asp-for="Name" class="form-label">
+                                <i class="fas fa-chess-board me-2"></i>Tên phòng
+                            </label>
+                            <input asp-for="Name" class="form-control" placeholder="Nhập tên phòng..." />
+                            <span asp-validation-for="Name" class="text-danger"></span>
+                        </div>
+
+                        <!-- Mô tả -->
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">
+                                <i class="fas fa-info-circle me-2"></i>Mô tả (tùy chọn)
+                            </label>
+                            <textarea asp-for="Description" class="form-control" rows="3" 
+                                      placeholder="Mô tả về phòng chơi..."></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <!-- Cấu hình game -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="MaxPlayers" class="form-label">
+                                        <i class="fas fa-users me-2"></i>Số người chơi tối đa
+                                    </label>
+                                    <select asp-for="MaxPlayers" class="form-select">
+                                        <option value="2">2 người</option>
+                                    </select>
+                                    <span asp-validation-for="MaxPlayers" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="BoardSize" class="form-label">
+                                        <i class="fas fa-square me-2"></i>Kích thước bàn cờ
+                                    </label>
+                                    <select asp-for="BoardSize" class="form-select">
+                                        <option value="10">10x10</option>
+                                        <option value="12">12x12</option>
+                                        <option value="15" selected>15x15</option>
+                                        <option value="18">18x18</option>
+                                        <option value="20">20x20</option>
+                                    </select>
+                                    <span asp-validation-for="BoardSize" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="WinCondition" class="form-label">
+                                        <i class="fas fa-trophy me-2"></i>Điều kiện thắng
+                                    </label>
+                                    <select asp-for="WinCondition" class="form-select">
+                                        <option value="3">3 quân liên tiếp</option>
+                                        <option value="4">4 quân liên tiếp</option>
+                                        <option value="5" selected>5 quân liên tiếp</option>
+                                        <option value="6">6 quân liên tiếp</option>
+                                    </select>
+                                    <span asp-validation-for="WinCondition" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="TimeLimitMinutes" class="form-label">
+                                        <i class="fas fa-clock me-2"></i>Thời gian giới hạn (phút)
+                                    </label>
+                                    <select asp-for="TimeLimitMinutes" class="form-select">
+                                        <option value="10">10 phút</option>
+                                        <option value="15">15 phút</option>
+                                        <option value="30" selected>30 phút</option>
+                                        <option value="45">45 phút</option>
+                                        <option value="60">60 phút</option>
+                                    </select>
+                                    <span asp-validation-for="TimeLimitMinutes" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cài đặt phòng -->
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input asp-for="IsPrivate" class="form-check-input" type="checkbox" id="isPrivateSwitch" />
+                                <label class="form-check-label" for="isPrivateSwitch">
+                                    <i class="fas fa-lock me-2"></i>Phòng riêng tư
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Mật khẩu (hiển thị khi chọn phòng riêng tư) -->
+                        <div class="mb-3" id="passwordSection" style="display: none;">
+                            <label asp-for="Password" class="form-label">
+                                <i class="fas fa-key me-2"></i>Mật khẩu phòng
+                            </label>
+                            <input asp-for="Password" class="form-control" placeholder="Nhập mật khẩu..." />
+                            <span asp-validation-for="Password" class="text-danger"></span>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Mật khẩu sẽ được yêu cầu khi người khác tham gia phòng
+                            </div>
+                        </div>
+
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-plus-circle me-2"></i>
+                                Tạo phòng
+                            </button>
+                            <a asp-action="Index" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>
+                                Quay lại danh sách
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Toggle password field visibility
+        document.getElementById('isPrivateSwitch').addEventListener('change', function() {
+            const passwordSection = document.getElementById('passwordSection');
+            if (this.checked) {
+                passwordSection.style.display = 'block';
+            } else {
+                passwordSection.style.display = 'none';
+                document.getElementById('Password').value = '';
+            }
+        });
+
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const isPrivate = document.getElementById('isPrivateSwitch').checked;
+            const password = document.getElementById('Password').value;
+            
+            if (isPrivate && !password.trim()) {
+                e.preventDefault();
+                alert('Vui lòng nhập mật khẩu cho phòng riêng tư!');
+                return false;
+            }
+        });
+    </script>
+}

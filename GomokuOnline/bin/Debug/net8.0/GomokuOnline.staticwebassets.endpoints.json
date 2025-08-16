@@ -249,6 +249,88 @@
       ]
     },
     {
+      "Route": "js/signalr-client.js",
+      "AssetFile": "js/signalr-client.js",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "16512"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/javascript"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"TwqadyO4VT1+CMrPoFLxZ/jstTC+xtptUh9oRfF0jZU=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 14 Aug 2025 13:09:51 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-TwqadyO4VT1+CMrPoFLxZ/jstTC+xtptUh9oRfF0jZU="
+        }
+      ]
+    },
+    {
+      "Route": "js/signalr-client.vwnt8hsp5x.js",
+      "AssetFile": "js/signalr-client.js",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "16512"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/javascript"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"TwqadyO4VT1+CMrPoFLxZ/jstTC+xtptUh9oRfF0jZU=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 14 Aug 2025 13:09:51 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "vwnt8hsp5x"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-TwqadyO4VT1+CMrPoFLxZ/jstTC+xtptUh9oRfF0jZU="
+        },
+        {
+          "Name": "label",
+          "Value": "js/signalr-client.js"
+        }
+      ]
+    },
+    {
       "Route": "js/site.js",
       "AssetFile": "js/site.js",
       "Selectors": [],

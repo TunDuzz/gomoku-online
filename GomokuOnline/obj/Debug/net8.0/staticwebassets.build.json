@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "Ek3VI+ytQPwkSWYy0bhz9XupNfMKOD5rbgIye2IB+LY=",
+  "Hash": "Pw+x4ffOoNL9oHMhkE/qMmpEolZH0WiUVqaLXTdzToo=",
   "Source": "GomokuOnline",
   "BasePath": "_content/GomokuOnline",
   "Mode": "Default",
@@ -99,6 +99,27 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\favicon.ico"
+    },
+    {
+      "Identity": "C:\\Users\\truon\\source\\repos\\GomokuOnline\\GomokuOnline\\wwwroot\\js\\signalr-client.js",
+      "SourceId": "GomokuOnline",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\truon\\source\\repos\\GomokuOnline\\GomokuOnline\\wwwroot\\",
+      "BasePath": "_content/GomokuOnline",
+      "RelativePath": "js/signalr-client#[.{fingerprint}]?.js",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "vwnt8hsp5x",
+      "Integrity": "TwqadyO4VT1+CMrPoFLxZ/jstTC+xtptUh9oRfF0jZU=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\js\\signalr-client.js"
     },
     {
       "Identity": "C:\\Users\\truon\\source\\repos\\GomokuOnline\\GomokuOnline\\wwwroot\\js\\site.js",
@@ -1645,6 +1666,88 @@
         {
           "Name": "integrity",
           "Value": "sha256-xNE50y+3zisTiSpmD6Dpa19hgvvAZVhg+AJQMTB+VmQ="
+        }
+      ]
+    },
+    {
+      "Route": "js/signalr-client.js",
+      "AssetFile": "C:\\Users\\truon\\source\\repos\\GomokuOnline\\GomokuOnline\\wwwroot\\js\\signalr-client.js",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "16512"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/javascript"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"TwqadyO4VT1+CMrPoFLxZ/jstTC+xtptUh9oRfF0jZU=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 14 Aug 2025 13:09:51 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-TwqadyO4VT1+CMrPoFLxZ/jstTC+xtptUh9oRfF0jZU="
+        }
+      ]
+    },
+    {
+      "Route": "js/signalr-client.vwnt8hsp5x.js",
+      "AssetFile": "C:\\Users\\truon\\source\\repos\\GomokuOnline\\GomokuOnline\\wwwroot\\js\\signalr-client.js",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "16512"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "text/javascript"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"TwqadyO4VT1+CMrPoFLxZ/jstTC+xtptUh9oRfF0jZU=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 14 Aug 2025 13:09:51 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "vwnt8hsp5x"
+        },
+        {
+          "Name": "label",
+          "Value": "js/signalr-client.js"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-TwqadyO4VT1+CMrPoFLxZ/jstTC+xtptUh9oRfF0jZU="
         }
       ]
     },

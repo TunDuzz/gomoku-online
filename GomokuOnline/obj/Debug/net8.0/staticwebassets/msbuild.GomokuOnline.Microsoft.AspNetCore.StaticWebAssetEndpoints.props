@@ -36,6 +36,18 @@
       <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-xNE50y\u002B3zisTiSpmD6Dpa19hgvvAZVhg\u002BAJQMTB\u002BVmQ="}]]]></EndpointProperties>
       <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"1130"},{"Name":"Content-Type","Value":"text/css"},{"Name":"ETag","Value":"\u0022xNE50y\u002B3zisTiSpmD6Dpa19hgvvAZVhg\u002BAJQMTB\u002BVmQ=\u0022"},{"Name":"Last-Modified","Value":"Wed, 13 Aug 2025 18:48:42 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/GomokuOnline/js/signalr-client.js">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\signalr-client.js'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-TwqadyO4VT1\u002BCMrPoFLxZ/jstTC\u002BxtptUh9oRfF0jZU="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"16512"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022TwqadyO4VT1\u002BCMrPoFLxZ/jstTC\u002BxtptUh9oRfF0jZU=\u0022"},{"Name":"Last-Modified","Value":"Thu, 14 Aug 2025 13:09:51 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="_content/GomokuOnline/js/signalr-client.vwnt8hsp5x.js">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\signalr-client.js'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"vwnt8hsp5x"},{"Name":"integrity","Value":"sha256-TwqadyO4VT1\u002BCMrPoFLxZ/jstTC\u002BxtptUh9oRfF0jZU="},{"Name":"label","Value":"_content/GomokuOnline/js/signalr-client.js"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"16512"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022TwqadyO4VT1\u002BCMrPoFLxZ/jstTC\u002BxtptUh9oRfF0jZU=\u0022"},{"Name":"Last-Modified","Value":"Thu, 14 Aug 2025 13:09:51 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="_content/GomokuOnline/js/site.js">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\site.js'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>

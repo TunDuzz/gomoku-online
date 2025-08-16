@@ -1,0 +1,805 @@
+@model GomokuOnline.Models.Entities.Game
+@using GomokuOnline.Models.Entities
+@{
+    ViewData["Title"] = $"Game - Phòng {Model.GameRoom?.Name}";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Main Game Area -->
+        <div class="col-lg-8">
+            <!-- Room Info Header -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">
+                                <i class="fas fa-chess-board me-2"></i>
+                                @Model.GameRoom?.Name
+                            </h4>
+                            <small>Phòng chơi Gomoku Online</small>
+                        </div>
+                        <div class="text-end">
+                            @switch (Model.Status)
+                            {
+                                case GameStatus.InProgress:
+                                    <span class="badge bg-success fs-6">
+                                        <i class="fas fa-play me-1"></i>Đang chơi
+                                    </span>
+                                    break;
+                                case GameStatus.Completed:
+                                    <span class="badge bg-success fs-6">
+                                        <i class="fas fa-trophy me-1"></i>Hoàn thành
+                                    </span>
+                                    break;
+                                case GameStatus.Draw:
+                                    <span class="badge bg-secondary fs-6">
+                                        <i class="fas fa-handshake me-1"></i>Hòa
+                                    </span>
+                                    break;
+                                default:
+                                    <span class="badge bg-info fs-6">@Model.Status</span>
+                                    break;
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h5 class="text-primary mb-0">@Model.GameRoom?.Participants.Count(p => p.Type == ParticipantType.Player)</h5>
+                                <small class="text-muted">Người chơi</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h5 class="text-info mb-0">@Model.BoardSize</h5>
+                                <small class="text-muted">Bàn cờ</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h5 class="text-success mb-0">@Model.WinCondition</h5>
+                                <small class="text-muted">Thắng</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-warning mb-0">@Model.GameRoom?.TimeLimitMinutes</h5>
+                            <small class="text-muted">Phút</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Board -->
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">
+                                <i class="fas fa-gamepad me-2"></i>
+                                Bàn cờ @Model.BoardSize x @Model.BoardSize
+                            </h5>
+                            <small>Thắng: @Model.WinCondition quân liên tiếp</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="mb-2">
+                                <span class="turn-indicator badge bg-warning text-dark fs-6">
+                                    <i class="fas fa-clock me-1"></i>
+                                    @if (User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.CurrentTurnUserId?.ToString())
+                                    {
+                                        <span>Lượt của bạn</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Lượt đối thủ</span>
+                                    }
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Game Board -->
+                    <div class="game-board-container text-center">
+                        <div id="gameBoard" class="game-board mx-auto" 
+                             data-board-size="@Model.BoardSize" 
+                             data-win-condition="@Model.WinCondition"
+                             data-game-id="@Model.Id">
+                            <!-- Board will be generated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Game Controls -->
+                    <div class="text-center mt-4">
+                        @if (Model.Status == GameStatus.InProgress)
+                        {
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-warning" onclick="surrender()">
+                                    <i class="fas fa-flag me-2"></i>Đầu hàng
+                                </button>
+                                <button type="button" class="btn btn-outline-info" onclick="requestDraw()">
+                                    <i class="fas fa-handshake me-2"></i>Xin hòa
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Players Info -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Người chơi
+                    </h6>
+                </div>
+                <div id="playersContainer" class="card-body p-2">
+                    @{
+                        var players = Model.GameRoom?.Participants.Where(p => p.Type == ParticipantType.Player).ToList() ?? new List<GameParticipant>();
+                    }
+                    
+                    @foreach (var player in players.OrderBy(p => p.PlayerOrder))
+                    {
+                        <div class="player-info mb-2 p-2 border rounded @(player.UserId == Model.CurrentTurnUserId ? "border-primary bg-light" : "")" data-player-id="@player.UserId">
+                            <div class="d-flex align-items-center">
+                                <div class="player-avatar me-2">
+                                    <i class="fas fa-user-circle @(player.PlayerColor == "X" ? "text-primary" : "text-danger")"></i>
+                                </div>
+                                <div class="flex-grow-1 min-width-0">
+                                    <div class="text-truncate fw-bold">@player.User.Username</div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge @(player.PlayerColor == "X" ? "bg-primary" : "bg-danger")">
+                                            @player.PlayerColor
+                                        </span>
+                                        @if (player.UserId == Model.CurrentTurnUserId && Model.Status == GameStatus.InProgress)
+                                        {
+                                            <span class="badge bg-warning text-dark turn-badge">
+                                                <i class="fas fa-clock me-1"></i>Lượt
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Game Stats -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Thống kê
+                    </h6>
+                </div>
+                <div class="card-body p-2">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h6 class="text-primary mb-0">@Model.TotalMoves</h6>
+                            <small class="text-muted">Nước đi</small>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="text-success mb-0">@Model.StartedAt.ToString("HH:mm")</h6>
+                            <small class="text-muted">Bắt đầu</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Section -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-comments me-2"></i>
+                        Chat
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div id="chatMessages" class="chat-messages p-2" style="height: 200px; overflow-y: auto;">
+                        <p class="text-muted text-center p-2 mb-0">Chưa có tin nhắn nào</p>
+                    </div>
+                    <div class="p-2 border-top">
+                        <form id="chatForm" class="d-flex">
+                            <input type="text" id="messageInput" class="form-control me-2" placeholder="Nhập tin nhắn..." maxlength="500">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Move History -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Lịch sử nước đi
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div id="moveHistory" class="move-history" style="height: 150px; overflow-y: auto;">
+                        @if (Model.Moves.Any())
+                        {
+                            @foreach (var move in Model.Moves.OrderBy(m => m.MoveNumber).Take(8))
+                            {
+                                <div class="move-item p-1 border-bottom">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="min-width-0 flex-grow-1">
+                                            <div class="text-truncate">
+                                                <small class="fw-bold">@move.User.Username</small>
+                                            </div>
+                                            <div class="text-truncate">
+                                                <small class="text-muted">
+                                                    (@move.Row, @move.Column) - @move.Symbol
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted flex-shrink-0 ms-1">@move.CreatedAt.ToString("HH:mm")</small>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center p-2 mb-0">Chưa có nước đi</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Global variables
+        const CURRENT_USER_ID = @(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        const CURRENT_TURN_USER_ID = @(Model.CurrentTurnUserId ?? 0);
+        const boardSize = @Model.BoardSize;
+        const gameId = @Model.Id;
+        let gameBoard = [];
+        let isMyTurn = CURRENT_USER_ID === CURRENT_TURN_USER_ID;
+
+        // Initialize board when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Game page loaded, initializing board...');
+            initializeBoard();
+            updateTurnIndicator();
+            
+            // Join game via SignalR
+            setTimeout(() => {
+                if (window.signalRClient && window.signalRClient.isConnected) {
+                    console.log('SignalR connected, joining game...');
+                    window.signalRClient.joinGame(gameId);
+                    setupSignalREventListeners();
+                } else {
+                    console.log('SignalR not connected, retrying...');
+                    setTimeout(() => {
+                        if (window.signalRClient && window.signalRClient.isConnected) {
+                            console.log('SignalR connected on retry, joining game...');
+                            window.signalRClient.joinGame(gameId);
+                            setupSignalREventListeners();
+                        } else {
+                            console.error('SignalR still not connected');
+                        }
+                    }, 2000);
+                }
+            }, 1000);
+        });
+
+        // Initialize the game board
+        function initializeBoard() {
+            console.log('Initializing board with size:', boardSize);
+            
+            // Reset board state
+            resetBoard();
+            
+            const boardContainer = document.getElementById('gameBoard');
+            if (!boardContainer) {
+                console.error('Board container not found');
+                return;
+            }
+
+            // Clear existing content
+            boardContainer.innerHTML = '';
+
+            // Set CSS grid columns and rows dynamically
+            const cellSize = window.innerWidth <= 768 ? 30 : 40;
+            boardContainer.style.gridTemplateColumns = `repeat(${boardSize}, ${cellSize}px)`;
+            boardContainer.style.gridTemplateRows = `repeat(${boardSize}, ${cellSize}px)`;
+
+            // Create board grid
+            for (let i = 0; i < boardSize; i++) {
+                for (let j = 0; j < boardSize; j++) {
+                    gameBoard[i][j] = '';
+                    const cell = document.createElement('div');
+                    cell.className = 'board-cell';
+                    cell.setAttribute('data-row', i);
+                    cell.setAttribute('data-col', j);
+                    cell.onclick = () => makeMove(i, j);
+                    boardContainer.appendChild(cell);
+                }
+            }
+
+            // Load existing moves
+            loadMoves();
+        }
+
+        // Reset board state
+        function resetBoard() {
+            console.log('Resetting board...');
+            gameBoard = [];
+            for (let i = 0; i < boardSize; i++) {
+                gameBoard[i] = [];
+                for (let j = 0; j < boardSize; j++) {
+                    gameBoard[i][j] = '';
+                }
+            }
+        }
+
+        // Load existing moves from server
+        function loadMoves() {
+            const moves = [
+                @foreach (var move in Model.Moves.OrderBy(m => m.MoveNumber))
+                {
+                    <text>
+                    {
+                        row: @move.Row,
+                        col: @move.Column,
+                        symbol: '@move.Symbol',
+                        userId: @move.UserId
+                    },
+                    </text>
+                }
+            ];
+            console.log('Loading moves:', moves);
+            moves.forEach(move => {
+                gameBoard[move.row][move.col] = move.symbol;
+                const cell = document.querySelector(`[data-row="${move.row}"][data-col="${move.col}"]`);
+                if (cell) {
+                    cell.textContent = move.symbol;
+                    cell.className = `board-cell ${move.symbol === 'X' ? 'player-x' : 'player-o'}`;
+                }
+            });
+        }
+
+        // Make a move
+        function makeMove(row, col) {
+            if (!isMyTurn) {
+                alert('Chưa đến lượt của bạn!');
+                return;
+            }
+            
+            if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
+                alert('Vị trí không hợp lệ!');
+                return;
+            }
+            
+            if (gameBoard[row][col] !== '') {
+                alert('Ô này đã có quân cờ!');
+                return;
+            }
+
+            // Send move to server via SignalR
+            if (window.signalRClient && window.signalRClient.isConnected) {
+                window.signalRClient.makeMove(gameId, row, col);
+            } else {
+                alert('Kết nối bị mất. Vui lòng tải lại trang.');
+            }
+        }
+
+        // Update turn indicator
+        function updateTurnIndicator() {
+            const turnIndicator = document.querySelector('.turn-indicator');
+            if (turnIndicator) {
+                if (isMyTurn) {
+                    turnIndicator.innerHTML = '<i class="fas fa-clock me-1"></i><span>Lượt của bạn</span>';
+                    turnIndicator.className = 'turn-indicator badge bg-success fs-6';
+                } else {
+                    turnIndicator.innerHTML = '<i class="fas fa-clock me-1"></i><span>Lượt đối thủ</span>';
+                    turnIndicator.className = 'turn-indicator badge bg-warning text-dark fs-6';
+                }
+            }
+        }
+
+        // Set up SignalR event listeners
+        function setupSignalREventListeners() {
+            if (!window.signalRClient || !window.signalRClient.gameHub) {
+                console.error('SignalR client or gameHub not available');
+                return;
+            }
+
+            // Listen for move updates
+            window.signalRClient.gameHub.on('MoveMade', function(data) {
+                console.log('Move received:', data);
+                if (data.gameId === gameId) {
+                    window.gameBoard.updateMove(data.row, data.col, data.symbol);
+                    isMyTurn = data.currentTurnUserId === CURRENT_USER_ID;
+                    updateTurnIndicator();
+                    updatePlayersTurn(data.currentTurnUserId);
+                }
+            });
+
+            // Listen for game status updates
+            window.signalRClient.gameHub.on('GameStatusChanged', function(data) {
+                console.log('Game status changed:', data);
+                if (data.gameId === gameId) {
+                    location.reload();
+                }
+            });
+
+            // Listen for player joined/left
+            window.signalRClient.gameHub.on('PlayerJoined', function(data) {
+                console.log('Player joined:', data);
+                if (data.gameId === gameId) {
+                    updatePlayersList();
+                }
+            });
+
+            window.signalRClient.gameHub.on('PlayerLeft', function(data) {
+                console.log('Player left:', data);
+                if (data.gameId === gameId) {
+                    updatePlayersList();
+                }
+            });
+        }
+
+        // Update players turn indicator
+        function updatePlayersTurn(currentTurnUserId) {
+            const playersContainer = document.getElementById('playersContainer');
+            if (!playersContainer) return;
+
+            // Remove all turn badges
+            const turnBadges = playersContainer.querySelectorAll('.turn-badge');
+            turnBadges.forEach(badge => badge.remove());
+
+            // Remove all turn highlighting
+            const playerInfos = playersContainer.querySelectorAll('.player-info');
+            playerInfos.forEach(info => {
+                info.classList.remove('border-primary', 'bg-light');
+            });
+
+            // Add turn badge and highlighting to current player
+            const currentPlayerInfo = playersContainer.querySelector(`[data-player-id="${currentTurnUserId}"]`);
+            if (currentPlayerInfo) {
+                currentPlayerInfo.classList.add('border-primary', 'bg-light');
+                
+                const badgeContainer = currentPlayerInfo.querySelector('.d-flex.justify-content-between.align-items-center');
+                if (badgeContainer) {
+                    const turnBadge = document.createElement('span');
+                    turnBadge.className = 'badge bg-warning text-dark turn-badge';
+                    turnBadge.innerHTML = '<i class="fas fa-clock me-1"></i>Lượt';
+                    badgeContainer.appendChild(turnBadge);
+                }
+            }
+        }
+
+        // Update players list (for when players join/leave)
+        function updatePlayersList() {
+            // Fetch updated players list from server
+            fetch(`@Url.Action("GetGamePlayers", "Game")?gameId=${gameId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderPlayersList(data.players);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating players list:', error);
+                });
+        }
+
+        // Render players list
+        function renderPlayersList(players) {
+            const playersContainer = document.getElementById('playersContainer');
+            if (!playersContainer) return;
+
+            playersContainer.innerHTML = '';
+
+            players.forEach(player => {
+                const playerHtml = `
+                    <div class="player-info mb-2 p-2 border rounded ${player.userId === CURRENT_TURN_USER_ID ? 'border-primary bg-light' : ''}" data-player-id="${player.userId}">
+                        <div class="d-flex align-items-center">
+                            <div class="player-avatar me-2">
+                                <i class="fas fa-user-circle ${player.playerColor === 'X' ? 'text-primary' : 'text-danger'}"></i>
+                            </div>
+                            <div class="flex-grow-1 min-width-0">
+                                <div class="text-truncate fw-bold">${player.username}</div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge ${player.playerColor === 'X' ? 'bg-primary' : 'bg-danger'}">
+                                        ${player.playerColor}
+                                    </span>
+                                    ${player.userId === CURRENT_TURN_USER_ID ? '<span class="badge bg-warning text-dark turn-badge"><i class="fas fa-clock me-1"></i>Lượt</span>' : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                playersContainer.innerHTML += playerHtml;
+            });
+        }
+
+        // Game control functions
+        function surrender() {
+            if (confirm('Bạn có chắc muốn đầu hàng?')) {
+                if (window.signalRClient && window.signalRClient.isConnected) {
+                    window.signalRClient.surrender(gameId);
+                }
+            }
+        }
+
+        function requestDraw() {
+            if (confirm('Bạn có muốn xin hòa?')) {
+                if (window.signalRClient && window.signalRClient.isConnected) {
+                    window.signalRClient.requestDraw(gameId);
+                }
+            }
+        }
+
+        // Global gameBoard object for SignalR updates
+        window.gameBoard = {
+            updateMove: function(row, col, symbol) {
+                if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
+                    return;
+                }
+                
+                if (gameBoard[row][col] !== '') {
+                    return;
+                }
+                
+                gameBoard[row][col] = symbol;
+                
+                const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell) {
+                    cell.textContent = symbol;
+                    cell.className = `board-cell ${symbol === 'X' ? 'player-x' : 'player-o'}`;
+                }
+                
+                updateMoveHistory(row, col, symbol);
+            }
+        };
+
+        // Update move history
+        function updateMoveHistory(row, col, symbol) {
+            const moveHistory = document.getElementById('moveHistory');
+            if (!moveHistory) return;
+
+            const moveItem = document.createElement('div');
+            moveItem.className = 'move-item p-1 border-bottom';
+            moveItem.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="min-width-0 flex-grow-1">
+                        <div class="text-truncate">
+                            <small class="fw-bold">${symbol === 'X' ? 'Người chơi X' : 'Người chơi O'}</small>
+                        </div>
+                        <div class="text-truncate">
+                            <small class="text-muted">(${row}, ${col}) - ${symbol}</small>
+                        </div>
+                    </div>
+                    <small class="text-muted flex-shrink-0 ms-1">${new Date().toLocaleTimeString()}</small>
+                </div>
+            `;
+
+            moveHistory.appendChild(moveItem);
+            moveHistory.scrollTop = moveHistory.scrollHeight;
+        }
+    </script>
+}
+
+<style>
+    /* Game Board Styles */
+    .game-board-container {
+        padding: 20px;
+    }
+
+    .game-board {
+        display: grid;
+        gap: 2px;
+        background-color: #333;
+        padding: 10px;
+        border-radius: 8px;
+        max-width: 600px;
+        margin: 0 auto;
+        width: fit-content;
+        justify-content: center;
+        border: 3px solid #333;
+        min-height: 500px;
+    }
+
+    .board-cell {
+        width: 40px;
+        height: 40px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+        user-select: none;
+        position: relative;
+        aspect-ratio: 1;
+        flex-shrink: 0;
+    }
+
+    .board-cell:hover {
+        background-color: #e9ecef;
+        transform: scale(1.05);
+    }
+
+    .board-cell.player-x {
+        color: #007bff;
+        background-color: #e3f2fd;
+    }
+
+    .board-cell.player-o {
+        color: #dc3545;
+        background-color: #ffebee;
+    }
+
+    /* Player Info Styles */
+    .player-info {
+        transition: all 0.3s ease;
+    }
+
+    .player-avatar {
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    /* Move History Styles */
+    .move-history {
+        background-color: #f8f9fa;
+    }
+
+    .move-item {
+        background-color: white;
+        transition: background-color 0.2s ease;
+    }
+
+    .move-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    /* Utility Classes */
+    .min-width-0 {
+        min-width: 0;
+    }
+
+    .text-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 768px) {
+        .game-board {
+            max-width: 400px;
+        }
+        
+        .board-cell {
+            width: 30px;
+            height: 30px;
+            font-size: 14px;
+        }
+
+        .player-info {
+            padding: 0.5rem !important;
+        }
+
+        .player-avatar {
+            width: 25px;
+            height: 25px;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .game-board {
+            max-width: 300px;
+        }
+        
+        .board-cell {
+            width: 25px;
+            height: 25px;
+            font-size: 12px;
+        }
+
+        .btn-group .btn {
+            padding: 0.375rem 0.5rem;
+            font-size: 0.875rem;
+        }
+    }
+
+    /* Chat Styles */
+    .chat-messages {
+        background-color: #f8f9fa;
+    }
+    
+    .chat-message {
+        background-color: white;
+        border-radius: 8px;
+        padding: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .chat-text {
+        word-wrap: break-word;
+    }
+</style>
+
+<script>
+    // Chat functionality
+    document.getElementById('chatForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const messageInput = document.getElementById('messageInput');
+        const message = messageInput.value.trim();
+        
+        if (message) {
+            // Send message via SignalR
+            if (window.signalRClient && window.signalRClient.isConnected) {
+                window.signalRClient.sendRoomMessage(@Model.GameRoomId, message);
+            }
+            
+            // Clear input
+            messageInput.value = '';
+        }
+    });
+
+    // Listen for chat messages
+    if (window.signalRClient && window.signalRClient.roomHub) {
+        window.signalRClient.roomHub.on('RoomMessageReceived', function(data) {
+            if (data.roomId === @Model.GameRoomId) {
+                addChatMessage(data.userId, data.message, data.timestamp);
+            }
+        });
+    }
+
+    // Add chat message to UI
+    function addChatMessage(userId, message, timestamp) {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+        
+        // Remove "no messages" placeholder if exists
+        const placeholder = chatMessages.querySelector('.text-muted.text-center');
+        if (placeholder) {
+            placeholder.remove();
+        }
+        
+        const messageHtml = `
+            <div class="chat-message mb-2">
+                <div class="d-flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-user-circle text-primary"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-2">
+                        <div class="d-flex justify-content-between">
+                            <small class="fw-bold">${userId}</small>
+                            <small class="text-muted">${new Date(timestamp).toLocaleTimeString()}</small>
+                        </div>
+                        <div class="chat-text">${message}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        chatMessages.innerHTML += messageHtml;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+</script>

@@ -28,8 +28,24 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQXV0aFxSZWdpc3Rlci5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/truon/source/repos/GomokuOnline/GomokuOnline/Views/Game/GameHistory.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcR2FtZVxHYW1lSGlzdG9yeS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/truon/source/repos/GomokuOnline/GomokuOnline/Views/Game/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcR2FtZVxJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/truon/source/repos/GomokuOnline/GomokuOnline/Views/Game/Room.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcR2FtZVxSb29tLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/truon/source/repos/GomokuOnline/GomokuOnline/Views/Game/_GameBoard.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcR2FtZVxfR2FtZUJvYXJkLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/truon/source/repos/GomokuOnline/GomokuOnline/Views/Game/_GameBoardError.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcR2FtZVxfR2FtZUJvYXJkRXJyb3IuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/truon/source/repos/GomokuOnline/GomokuOnline/Views/Home/Index.cshtml]
@@ -38,6 +54,18 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/truon/source/repos/GomokuOnline/GomokuOnline/Views/Home/Privacy.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxQcml2YWN5LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/truon/source/repos/GomokuOnline/GomokuOnline/Views/Room/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUm9vbVxDcmVhdGUuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/truon/source/repos/GomokuOnline/GomokuOnline/Views/Room/Details.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUm9vbVxEZXRhaWxzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/truon/source/repos/GomokuOnline/GomokuOnline/Views/Room/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUm9vbVxJbmRleC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/truon/source/repos/GomokuOnline/GomokuOnline/Views/Shared/Error.cshtml]

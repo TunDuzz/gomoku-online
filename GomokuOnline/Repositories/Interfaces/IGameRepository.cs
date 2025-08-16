@@ -11,5 +11,6 @@ namespace GomokuOnline.Repositories.Interfaces
         Task<bool> SetWinnerAsync(int gameId, int winnerUserId);
         Task<bool> SetCurrentTurnAsync(int gameId, int currentTurnUserId);
         Task<bool> UpdateGameStatusAsync(int gameId, GameStatus status);
+        Task<List<GameRoom>> GetAllRoomsAsync();
     }
 }

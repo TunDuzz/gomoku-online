@@ -1,0 +1,288 @@
+@model List<GomokuOnline.Models.Entities.Game>
+@using GomokuOnline.Models.Entities
+@{
+    ViewData["Title"] = "Lịch sử game - Gomoku Online";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-0">
+                        <i class="fas fa-history me-2 text-primary"></i>
+                        Lịch sử game
+                    </h2>
+                    <p class="text-muted mb-0">Xem lại các ván cờ đã chơi</p>
+                </div>
+                <a asp-controller="Room" asp-action="Create" class="btn btn-success">
+                    <i class="fas fa-plus me-2"></i>
+                    Tạo phòng mới
+                </a>
+            </div>
+
+            <!-- Stats Summary -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-0">@Model.Count</h4>
+                            <small>Tổng số game</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-0">@Model.Count(g => g.WinnerUserId.HasValue)</h4>
+                            <small>Game hoàn thành</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-dark">
+                        <div class="card-body text-center">
+                            <h4 class="mb-0">@Model.Count(g => g.Status == GameStatus.InProgress)</h4>
+                            <small>Đang chơi</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-0">@Model.Count(g => g.Status == GameStatus.Draw)</h4>
+                            <small>Game hòa</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Games List -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Danh sách game
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Phòng</th>
+                                        <th>Kích thước</th>
+                                        <th>Trạng thái</th>
+                                        <th>Người thắng</th>
+                                        <th>Thời gian</th>
+                                        <th>Nước đi</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var game in Model.OrderByDescending(g => g.StartedAt))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <i class="fas fa-chess-board me-2 text-primary"></i>
+                                                    <div>
+                                                        <strong>@game.GameRoom?.Name</strong>
+                                                        <br>
+                                                        <small class="text-muted">
+                                                            @game.StartedAt.ToString("dd/MM/yyyy HH:mm")
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-secondary">
+                                                    @game.BoardSize x @game.BoardSize
+                                                </span>
+                                            </td>
+                                            <td>
+                                                @switch (game.Status)
+                                                {
+                                                    case GameStatus.InProgress:
+                                                        <span class="badge bg-warning text-dark">
+                                                            <i class="fas fa-play me-1"></i>Đang chơi
+                                                        </span>
+                                                        break;
+                                                    case GameStatus.Completed:
+                                                        <span class="badge bg-success">
+                                                            <i class="fas fa-trophy me-1"></i>Hoàn thành
+                                                        </span>
+                                                        break;
+                                                    case GameStatus.Draw:
+                                                        <span class="badge bg-secondary">
+                                                            <i class="fas fa-handshake me-1"></i>Hòa
+                                                        </span>
+                                                        break;
+                                                    case GameStatus.Cancelled:
+                                                        <span class="badge bg-danger">
+                                                            <i class="fas fa-times me-1"></i>Hủy
+                                                        </span>
+                                                        break;
+                                                    default:
+                                                        <span class="badge bg-info">@game.Status</span>
+                                                        break;
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (game.WinnerUser != null)
+                                                {
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-crown text-warning me-2"></i>
+                                                        <span class="text-success fw-bold">
+                                                            @game.WinnerUser.Username
+                                                        </span>
+                                                    </div>
+                                                }
+                                                else if (game.Status == GameStatus.Draw)
+                                                {
+                                                    <span class="text-secondary">
+                                                        <i class="fas fa-handshake me-1"></i>Hòa
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Chưa kết thúc</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-clock me-1"></i>
+                                                        @game.StartedAt.ToString("HH:mm")
+                                                    </small>
+                                                    @if (game.EndedAt.HasValue)
+                                                    {
+                                                        <br>
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-flag-checkered me-1"></i>
+                                                            @game.EndedAt.Value.ToString("HH:mm")
+                                                        </small>
+                                                    }
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="text-center">
+                                                    <h6 class="mb-0 text-primary">@game.TotalMoves</h6>
+                                                    <small class="text-muted">nước đi</small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a asp-action="Room" asp-route-id="@game.Id" 
+                                                       class="btn btn-sm btn-outline-primary" title="Xem chi tiết">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    @if (game.Status == GameStatus.InProgress)
+                                                    {
+                                                        <a asp-action="Room" asp-route-id="@game.Id" 
+                                                           class="btn btn-sm btn-success" title="Tiếp tục chơi">
+                                                            <i class="fas fa-play"></i>
+                                                        </a>
+                                                    }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-history fa-4x text-muted mb-4"></i>
+                            <h4 class="text-muted mb-3">Chưa có game nào</h4>
+                            <p class="text-muted mb-4">Bắt đầu chơi game đầu tiên của bạn!</p>
+                            <a asp-controller="Room" asp-action="Create" class="btn btn-primary btn-lg">
+                                <i class="fas fa-plus me-2"></i>
+                                Tạo phòng mới
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            @if (Model.Count > 20)
+            {
+                <nav aria-label="Game history pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item active">
+                            <a class="page-link" href="#">1</a>
+                        </li>
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Add hover effects
+        document.querySelectorAll('.table tbody tr').forEach(row => {
+            row.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = '#f8f9fa';
+            });
+            
+            row.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '';
+            });
+        });
+
+        // Auto-refresh every 30 seconds for active games
+        setInterval(function() {
+            const hasActiveGames = @Model.Any(g => g.Status == GameStatus.InProgress).ToString().ToLower();
+            if (hasActiveGames) {
+                location.reload();
+            }
+        }, 30000);
+    </script>
+}
+
+<style>
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa !important;
+    }
+    
+    .badge {
+        font-size: 0.75rem;
+    }
+    
+    .btn-group .btn {
+        border-radius: 0.25rem !important;
+    }
+    
+    .btn-group .btn:first-child {
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+    }
+    
+    .btn-group .btn:last-child {
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+    }
+</style>

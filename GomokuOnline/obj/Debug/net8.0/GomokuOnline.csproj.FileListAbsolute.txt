@@ -137,4 +137,13 @@ C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\obj\Debug\net8.0\refint\Go
 C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\obj\Debug\net8.0\GomokuOnline.pdb
 C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\obj\Debug\net8.0\GomokuOnline.genruntimeconfig.cache
 C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\obj\Debug\net8.0\ref\GomokuOnline.dll
+C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\obj\Debug\net8.0\GomokuOnline.sourcelink.json
+C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\bin\Debug\net8.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\bin\Debug\net8.0\Microsoft.Extensions.Diagnostics.Abstractions.dll
+C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\bin\Debug\net8.0\Microsoft.Extensions.Hosting.Abstractions.dll
+C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\bin\Debug\net8.0\Microsoft.Extensions.Logging.Abstractions.dll
+C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\bin\Debug\net8.0\Microsoft.Extensions.ObjectPool.dll
+C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\bin\Debug\net8.0\Microsoft.Extensions.Options.dll
+C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\bin\Debug\net8.0\Newtonsoft.Json.dll
+C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\bin\Debug\net8.0\System.Net.WebSockets.WebSocketProtocol.dll
 C:\Users\truon\source\repos\GomokuOnline\GomokuOnline\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
