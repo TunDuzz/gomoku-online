@@ -362,5 +362,26 @@ namespace GomokuOnline.Hubs
                    diagonal1Count >= game.WinCondition || 
                    diagonal2Count >= game.WinCondition;
         }
+
+        // Broadcast events for Game Index page
+        public async Task BroadcastGameStarted(int gameId)
+        {
+            await Clients.All.SendAsync("GameStarted", new { gameId });
+        }
+
+        public async Task BroadcastGameEnded(int gameId)
+        {
+            await Clients.All.SendAsync("GameEnded", new { gameId });
+        }
+
+        public async Task BroadcastRoomCreated(int roomId)
+        {
+            await Clients.All.SendAsync("RoomCreated", new { roomId });
+        }
+
+        public async Task BroadcastRoomStatusChanged(int roomId, string status)
+        {
+            await Clients.All.SendAsync("RoomStatusChanged", new { roomId, status });
+        }
     }
 }

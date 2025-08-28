@@ -2,21 +2,26 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using GomokuOnline.Repositories.Interfaces;
+using GomokuOnline.Services.Interfaces;
 using GomokuOnline.ViewModels.Game;
 using GomokuOnline.Models.Entities;
+using Microsoft.AspNetCore.SignalR;
+using GomokuOnline.Hubs;
 
 namespace GomokuOnline.Controllers
 {
     [Authorize]
     public class GameController : Controller
     {
-        private readonly IGameRepository _gameRepository;
+        private readonly IGameService _gameService;
         private readonly IUserRepository _userRepository;
+        private readonly IHubContext<GameHub> _gameHub;
 
-        public GameController(IGameRepository gameRepository, IUserRepository userRepository)
+        public GameController(IGameService gameService, IUserRepository userRepository, IHubContext<GameHub> gameHub)
         {
-            _gameRepository = gameRepository;
+            _gameService = gameService;
             _userRepository = userRepository;
+            _gameHub = gameHub;
         }
 
         [HttpGet]
@@ -25,8 +30,8 @@ namespace GomokuOnline.Controllers
             var userId = GetCurrentUserId();
             if (userId == 0) return RedirectToAction("Login", "Auth");
 
-            var activeGames = await _gameRepository.GetActiveGamesAsync();
-            var userGames = await _gameRepository.GetUserGamesAsync(userId, 1, 10);
+            var activeGames = await _gameService.GetActiveGamesAsync();
+            var userGames = await _gameService.GetUserGamesAsync(userId, 1, 10);
 
             var viewModel = new GameViewModel
             {
@@ -40,13 +45,54 @@ namespace GomokuOnline.Controllers
         [HttpGet]
         public async Task<IActionResult> Room(int id)
         {
-            var game = await _gameRepository.GetGameWithDetailsAsync(id);
+            var game = await _gameService.GetGameWithDetailsAsync(id);
             if (game == null)
             {
                 return NotFound();
             }
 
             return View(game);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DebugGame(int id)
+        {
+            try
+            {
+                var game = await _gameService.GetGameWithDetailsAsync(id);
+                if (game == null)
+                {
+                    return Json(new { 
+                        success = false, 
+                        message = "Game không tồn tại",
+                        gameId = id
+                    });
+                }
+
+                return Json(new { 
+                    success = true, 
+                    game = new
+                    {
+                        id = game.Id,
+                        gameRoomId = game.GameRoomId,
+                        status = game.Status,
+                        boardSize = game.BoardSize,
+                        winCondition = game.WinCondition,
+                        currentTurnUserId = game.CurrentTurnUserId,
+                        totalMoves = game.TotalMoves,
+                        startedAt = game.StartedAt,
+                        endedAt = game.EndedAt
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { 
+                    success = false, 
+                    message = "Lỗi: " + ex.Message,
+                    gameId = id
+                });
+            }
         }
 
         [HttpGet]
@@ -68,9 +114,16 @@ namespace GomokuOnline.Controllers
 
             try
             {
+                // Kiểm tra xem có GameRoomId không
+                if (!model.GameRoomId.HasValue)
+                {
+                    ModelState.AddModelError(string.Empty, "Vui lòng chọn phòng để tạo game");
+                    return View(model);
+                }
+
                 // Tạo game mới
-                var game = await _gameRepository.CreateGameAsync(
-                    model.GameRoomId, 
+                var game = await _gameService.CreateGameAsync(
+                    model.GameRoomId.Value, 
                     model.BoardSize, 
                     model.WinCondition);
 
@@ -84,7 +137,7 @@ namespace GomokuOnline.Controllers
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError(string.Empty, "Đã xảy ra lỗi khi tạo ván cờ");
+                ModelState.AddModelError(string.Empty, "Đã xảy ra lỗi khi tạo ván cờ: " + ex.Message);
                 return View(model);
             }
         }
@@ -97,10 +150,16 @@ namespace GomokuOnline.Controllers
 
             try
             {
-                var game = await _gameRepository.GetGameWithDetailsAsync(gameId);
+                var game = await _gameService.GetGameWithDetailsAsync(gameId);
                 if (game == null)
                 {
                     return Json(new { success = false, message = "Ván cờ không tồn tại" });
+                }
+
+                // Kiểm tra trạng thái game
+                if (game.Status != GameStatus.InProgress)
+                {
+                    return Json(new { success = false, message = "Ván cờ đã kết thúc" });
                 }
 
                 if (game.CurrentTurnUserId != userId)
@@ -108,59 +167,53 @@ namespace GomokuOnline.Controllers
                     return Json(new { success = false, message = "Chưa đến lượt của bạn" });
                 }
 
-                // Kiểm tra ô đã có quân cờ chưa
-                var existingMove = game.Moves.FirstOrDefault(m => m.Row == row && m.Column == column);
-                if (existingMove != null)
+                // Kiểm tra người chơi có trong phòng không
+                var player = game.GameRoom?.Participants.FirstOrDefault(p => p.UserId == userId && p.Type == ParticipantType.Player);
+                if (player == null)
                 {
-                    return Json(new { success = false, message = "Ô này đã có quân cờ" });
+                    return Json(new { success = false, message = "Bạn không phải người chơi trong ván cờ này" });
                 }
 
-                // Tạo nước đi mới
-                var currentPlayer = game.GameRoom?.Participants.FirstOrDefault(p => p.UserId == userId);
-                var symbol = currentPlayer?.PlayerColor ?? "X";
-                
-                var move = new Move
+                // Thực hiện nước đi
+                var success = await _gameService.MakeMoveAsync(gameId, userId, row, column);
+                if (!success)
                 {
-                    GameId = gameId,
-                    UserId = userId,
-                    Row = row,
-                    Column = column,
-                    Symbol = symbol,
-                    MoveNumber = game.TotalMoves + 1,
-                    CreatedAt = DateTime.UtcNow,
-                    IsValid = true
-                };
-
-                // Thêm move vào game
-                game.Moves.Add(move);
-                game.TotalMoves = game.Moves.Count;
-                game.LastMoveAt = DateTime.UtcNow;
-
-                // Chuyển lượt cho người chơi tiếp theo
-                var players = game.GameRoom?.Participants.Where(p => p.Type == ParticipantType.Player).OrderBy(p => p.PlayerOrder).ToList();
-                if (players != null && players.Count > 1)
-                {
-                    var currentPlayerIndex = players.FindIndex(p => p.UserId == game.CurrentTurnUserId);
-                    if (currentPlayerIndex >= 0)
-                    {
-                        var nextPlayerIndex = (currentPlayerIndex + 1) % players.Count;
-                        game.CurrentTurnUserId = players[nextPlayerIndex].UserId;
-                    }
-                    else
-                    {
-                        // Fallback: chuyển cho người chơi đầu tiên
-                        game.CurrentTurnUserId = players.First().UserId;
-                    }
+                    return Json(new { success = false, message = "Nước đi không hợp lệ" });
                 }
 
-                // Lưu vào database
-                await _gameRepository.UpdateAsync(game);
+                // Lấy thông tin game sau khi thực hiện nước đi
+                var updatedGame = await _gameService.GetGameWithDetailsAsync(gameId);
+                var lastMove = await _gameService.GetLastMoveAsync(gameId);
+
+                // Phát SignalR event
+                await _gameHub.Clients.Group($"game_{gameId}").SendAsync("MoveMade", new
+                {
+                    gameId = gameId,
+                    userId = userId,
+                    row = row,
+                    column = column,
+                    symbol = lastMove?.Symbol,
+                    moveNumber = lastMove?.MoveNumber,
+                    isWin = updatedGame?.Status == GameStatus.Completed,
+                    gameStatus = updatedGame?.Status,
+                    winnerUserId = updatedGame?.WinnerUserId,
+                    currentTurnUserId = updatedGame?.CurrentTurnUserId
+                });
+
+                // Broadcast game ended event if game is completed
+                if (updatedGame?.Status == GameStatus.Completed)
+                {
+                    await _gameHub.Clients.All.SendAsync("GameEnded", new { gameId });
+                }
 
                 return Json(new { 
                     success = true, 
-                    move = move,
-                    currentTurnUserId = game.CurrentTurnUserId,
-                    totalMoves = game.TotalMoves
+                    move = lastMove,
+                    currentTurnUserId = updatedGame?.CurrentTurnUserId,
+                    totalMoves = updatedGame?.TotalMoves,
+                    gameStatus = updatedGame?.Status,
+                    winnerUserId = updatedGame?.WinnerUserId,
+                    isWin = updatedGame?.Status == GameStatus.Completed
                 });
             }
             catch (Exception ex)
@@ -175,7 +228,7 @@ namespace GomokuOnline.Controllers
             var userId = GetCurrentUserId();
             if (userId == 0) return RedirectToAction("Login", "Auth");
 
-            var userGames = await _gameRepository.GetUserGamesAsync(userId, page, 20);
+            var userGames = await _gameService.GetUserGamesAsync(userId, page, 20);
             return View(userGames);
         }
 
@@ -184,7 +237,7 @@ namespace GomokuOnline.Controllers
         {
             try
             {
-                var game = await _gameRepository.GetGameWithDetailsAsync(gameId);
+                var game = await _gameService.GetGameWithDetailsAsync(gameId);
                 if (game == null)
                 {
                     return Json(new { success = false, message = "Game không tồn tại" });
@@ -224,7 +277,7 @@ namespace GomokuOnline.Controllers
         {
             try
             {
-                var game = await _gameRepository.GetGameWithDetailsAsync(gameId);
+                var game = await _gameService.GetGameWithDetailsAsync(gameId);
                 if (game == null)
                 {
                     return PartialView("_GameBoardError", "Game không tồn tại");
@@ -244,16 +297,16 @@ namespace GomokuOnline.Controllers
             try
             {
                 // Get all rooms from database
-                var rooms = await _gameRepository.GetAllRoomsAsync();
+                var rooms = await _gameService.GetAllRoomsAsync();
                 
-                // Apply filters
-                var filteredRooms = rooms.AsQueryable();
+                // Apply filters - only show active rooms (Waiting or Playing)
+                var filteredRooms = rooms.Where(r => r.Status == RoomStatus.Waiting || r.Status == RoomStatus.Playing).AsQueryable();
                 
                 if (!string.IsNullOrEmpty(keyword))
                 {
                     filteredRooms = filteredRooms.Where(r => 
                         r.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                        r.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+                        (r.Description != null && r.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
                 }
                 
                 if (!string.IsNullOrEmpty(status))
@@ -295,6 +348,135 @@ namespace GomokuOnline.Controllers
             catch (Exception ex)
             {
                 return Json(new { success = false, message = "Lỗi khi tìm kiếm phòng" });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetGameState(int id)
+        {
+            try
+            {
+                var game = await _gameService.GetGameWithDetailsAsync(id);
+                if (game == null)
+                {
+                    return Json(new { success = false, message = "Game không tồn tại" });
+                }
+
+                var gameState = new
+                {
+                    id = game.Id,
+                    status = game.Status.ToString(),
+                    currentTurnUserId = game.CurrentTurnUserId,
+                    totalMoves = game.TotalMoves,
+                    winnerUserId = game.WinnerUserId,
+                    startedAt = game.StartedAt,
+                    endedAt = game.EndedAt
+                };
+
+                return Json(new { success = true, game = gameState });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Lỗi khi lấy trạng thái game" });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetLatestMoves(int id, int lastMoveCount = 0)
+        {
+            try
+            {
+                var game = await _gameService.GetGameWithDetailsAsync(id);
+                if (game == null)
+                {
+                    return Json(new { success = false, message = "Game không tồn tại" });
+                }
+
+                // Get moves after the last move count
+                var latestMoves = game.Moves
+                    .Where(m => m.MoveNumber > lastMoveCount)
+                    .OrderBy(m => m.MoveNumber)
+                    .Select(m => new
+                    {
+                        row = m.Row,
+                        col = m.Column,
+                        symbol = m.Symbol,
+                        username = m.User?.Username ?? "Unknown",
+                        moveNumber = m.MoveNumber,
+                        createdAt = m.CreatedAt
+                    })
+                    .ToList();
+
+                return Json(new { success = true, moves = latestMoves });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Lỗi khi lấy nước đi mới" });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetActiveGames()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var activeGames = await _gameService.GetActiveGamesAsync();
+                var userGames = await _gameService.GetUserGamesAsync(userId, 1, 10);
+
+                // Lấy thêm các phòng đang chờ người chơi
+                var waitingRooms = await _gameService.GetWaitingRoomsAsync();
+
+                // Convert active games to anonymous objects
+                var gamesData = activeGames
+                    .OrderByDescending(g => g.StartedAt)
+                    .Take(6)
+                    .Select(g => new
+                    {
+                        id = g.Id,
+                        roomName = g.GameRoom?.Name ?? "Unknown Room",
+                        boardSize = g.BoardSize,
+                        winCondition = g.WinCondition,
+                        totalMoves = g.TotalMoves,
+                        playerCount = g.GameRoom?.Participants.Count(p => p.Type == ParticipantType.Player) ?? 0,
+                        startedAt = g.StartedAt,
+                        status = g.Status.ToString(),
+                        currentTurnUserId = g.CurrentTurnUserId,
+                        type = "active"
+                    })
+                    .ToList();
+
+                // Convert waiting rooms to anonymous objects
+                var waitingData = waitingRooms
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Take(6 - gamesData.Count) // Fill remaining slots
+                    .Select(r => new
+                    {
+                        id = r.Id,
+                        roomName = r.Name,
+                        boardSize = r.BoardSize,
+                        winCondition = r.WinCondition,
+                        totalMoves = 0,
+                        playerCount = r.Participants.Count(p => p.Type == ParticipantType.Player),
+                        startedAt = r.CreatedAt,
+                        status = "Waiting",
+                        currentTurnUserId = (int?)null,
+                        type = "waiting"
+                    })
+                    .ToList();
+
+                // Combine both lists
+                var allData = gamesData.Concat(waitingData).ToList();
+
+                return Json(new { 
+                    success = true, 
+                    games = allData,
+                    userGamesCount = userGames.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Lỗi khi lấy danh sách game" });
             }
         }
 

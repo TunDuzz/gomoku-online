@@ -33,6 +33,7 @@ builder.Services.AddScoped<IGameRepository, GameRepository>();
 
 // Add Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGameService, GameService>();
 
 // Add SignalR
 builder.Services.AddSignalR();

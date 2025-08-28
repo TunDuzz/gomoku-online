@@ -22,7 +22,7 @@ namespace GomokuOnline.Models.Entities
 
         public int? LastMoveId { get; set; } // ID của nước đi cuối cùng
 
-        public string? GameStatus { get; set; } // Trạng thái ván cờ tại thời điểm này
+        public GameStatus GameStatus { get; set; } = GameStatus.InProgress; // Sử dụng enum thay vì string
 
         // Navigation properties
         [ForeignKey("GameId")]

@@ -52,15 +52,42 @@ namespace GomokuOnline.Repositories.Implementations
 
         public async Task<Game?> CreateGameAsync(int gameRoomId, int boardSize, int winCondition)
         {
-            // Lấy danh sách người chơi trong phòng
-            var participants = await _context.GameParticipants
-                .Where(p => p.GameRoomId == gameRoomId && p.Type == ParticipantType.Player)
-                .OrderBy(p => p.PlayerOrder)
-                .ToListAsync();
+            // Kiểm tra phòng có tồn tại không
+            var room = await _context.GameRooms
+                .Include(r => r.Participants)
+                .FirstOrDefaultAsync(r => r.Id == gameRoomId);
 
-            if (!participants.Any())
+            if (room == null)
             {
-                throw new InvalidOperationException("Không có người chơi nào trong phòng");
+                throw new InvalidOperationException("Phòng không tồn tại");
+            }
+
+            // Kiểm tra trạng thái phòng
+            if (room.Status != RoomStatus.Waiting)
+            {
+                throw new InvalidOperationException("Phòng không ở trạng thái chờ");
+            }
+
+            // Lấy danh sách người chơi trong phòng (không rời phòng)
+            var participants = room.Participants
+                .Where(p => p.Type == ParticipantType.Player && p.LeftAt == null)
+                .OrderBy(p => p.PlayerOrder)
+                .ToList();
+
+            if (participants.Count < 2)
+            {
+                throw new InvalidOperationException("Cần ít nhất 2 người chơi để bắt đầu");
+            }
+
+            // Kiểm tra tham số
+            if (boardSize < 10 || boardSize > 20)
+            {
+                throw new ArgumentException("Kích thước bàn cờ phải từ 10 đến 20");
+            }
+
+            if (winCondition < 3 || winCondition > 10 || winCondition > boardSize)
+            {
+                throw new ArgumentException("Điều kiện thắng không hợp lệ");
             }
 
             // Người chơi đầu tiên (PlayerOrder = 1) sẽ chơi trước
@@ -74,11 +101,17 @@ namespace GomokuOnline.Repositories.Implementations
                 StartedAt = DateTime.UtcNow,
                 Status = GameStatus.InProgress,
                 TotalMoves = 0,
-                CurrentTurnUserId = firstPlayer.UserId // Thiết lập người chơi đầu tiên
+                CurrentTurnUserId = firstPlayer.UserId,
+                TimeLimitSeconds = room.TimeLimitMinutes * 60 // Chuyển phút thành giây
             };
+
+            // Cập nhật trạng thái phòng
+            room.Status = RoomStatus.Playing;
+            room.StartedAt = DateTime.UtcNow;
 
             await _dbSet.AddAsync(game);
             await _context.SaveChangesAsync();
+            
             return game;
         }
 
@@ -90,6 +123,14 @@ namespace GomokuOnline.Repositories.Implementations
             game.WinnerUserId = winnerUserId;
             game.Status = GameStatus.Completed;
             game.EndedAt = DateTime.UtcNow;
+
+            // Cập nhật trạng thái phòng
+            var room = await _context.GameRooms.FindAsync(game.GameRoomId);
+            if (room != null)
+            {
+                room.Status = RoomStatus.Finished;
+                room.EndedAt = DateTime.UtcNow;
+            }
 
             await UpdateAsync(game);
             return true;
@@ -118,6 +159,14 @@ namespace GomokuOnline.Repositories.Implementations
                 status == GameStatus.Cancelled || status == GameStatus.Timeout)
             {
                 game.EndedAt = DateTime.UtcNow;
+
+                // Cập nhật trạng thái phòng
+                var room = await _context.GameRooms.FindAsync(game.GameRoomId);
+                if (room != null)
+                {
+                    room.Status = RoomStatus.Finished;
+                    room.EndedAt = DateTime.UtcNow;
+                }
             }
 
             await UpdateAsync(game);
@@ -132,6 +181,42 @@ namespace GomokuOnline.Repositories.Implementations
                 .Include(r => r.Games)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
+        }
+
+        public async Task<List<GameRoom>> GetWaitingRoomsAsync()
+        {
+            return await _context.GameRooms
+                .Include(r => r.Participants.Where(p => p.LeftAt == null))
+                .Include(r => r.CreatedByUser)
+                .Where(r => r.Status == RoomStatus.Waiting && r.Participants.Count(p => p.Type == ParticipantType.Player && p.LeftAt == null) < 2)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<bool> IsValidMoveAsync(int gameId, int row, int column)
+        {
+            var game = await GetByIdAsync(gameId);
+            if (game == null) return false;
+
+            // Kiểm tra tọa độ hợp lệ
+            if (row < 0 || row >= game.BoardSize || column < 0 || column >= game.BoardSize)
+            {
+                return false;
+            }
+
+            // Kiểm tra ô đã có quân cờ chưa
+            var existingMove = await _context.Moves
+                .FirstOrDefaultAsync(m => m.GameId == gameId && m.Row == row && m.Column == column);
+
+            return existingMove == null;
+        }
+
+        public async Task<Move?> GetLastMoveAsync(int gameId)
+        {
+            return await _context.Moves
+                .Where(m => m.GameId == gameId)
+                .OrderByDescending(m => m.MoveNumber)
+                .FirstOrDefaultAsync();
         }
     }
 }
