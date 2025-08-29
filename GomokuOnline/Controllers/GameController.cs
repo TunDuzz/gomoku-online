@@ -16,12 +16,14 @@ namespace GomokuOnline.Controllers
         private readonly IGameService _gameService;
         private readonly IUserRepository _userRepository;
         private readonly IHubContext<GameHub> _gameHub;
+        private readonly Data.GomokuDbContext _dbContext;
 
-        public GameController(IGameService gameService, IUserRepository userRepository, IHubContext<GameHub> gameHub)
+        public GameController(IGameService gameService, IUserRepository userRepository, IHubContext<GameHub> gameHub, Data.GomokuDbContext dbContext)
         {
             _gameService = gameService;
             _userRepository = userRepository;
             _gameHub = gameHub;
+            _dbContext = dbContext;
         }
 
         [HttpGet]
@@ -52,6 +54,40 @@ namespace GomokuOnline.Controllers
             }
 
             return View(game);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetChatMessages(int gameId, int take = 50)
+        {
+            try
+            {
+                var game = await _gameService.GetGameWithDetailsAsync(gameId);
+                if (game == null || game.GameRoomId == null)
+                {
+                    return Json(new { success = false, message = "Game không tồn tại" });
+                }
+
+                // Lấy tin nhắn gần nhất theo phòng (game room)
+                var messages = await Task.Run(() =>
+                    _dbContext.ChatMessages
+                        .Where(m => m.GameRoomId == game.GameRoomId && !m.IsDeleted)
+                        .OrderByDescending(m => m.CreatedAt)
+                        .Take(take)
+                        .Select(m => new {
+                            userId = m.UserId,
+                            username = m.User.Username,
+                            message = m.Content,
+                            timestamp = m.CreatedAt
+                        })
+                        .ToList());
+
+                messages.Reverse();
+                return Json(new { success = true, messages });
+            }
+            catch (Exception)
+            {
+                return Json(new { success = false, message = "Lỗi khi tải tin nhắn" });
+            }
         }
 
         [HttpGet]

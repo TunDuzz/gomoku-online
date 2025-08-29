@@ -85,13 +85,13 @@
                             <div class="alert alert-info">
                                 <i class="fas fa-spinner fa-spin me-2"></i>
                                 Game đang diễn ra, chuyển hướng...
-                            </div>
-                            <script>
+                        </div>
+                        <script>
                                 // Tự động chuyển hướng vào game sau 1 giây
                                 setTimeout(function() {
                                     window.location.href = '/Game/Room/@currentGame.Id';
                                 }, 1000);
-                            </script>
+                        </script>
                         </div>
                     }
                     else
@@ -122,16 +122,16 @@
                     @foreach (var player in players.OrderBy(p => p.PlayerOrder))
                     {
                         <div class="player-item mb-2 p-2 border rounded" data-player-id="@player.UserId">
-                            <div class="d-flex align-items-center">
+                                    <div class="d-flex align-items-center">
                                 <div class="me-2">
                                     <i class="fas fa-user-circle @(player.PlayerColor == "X" ? "text-primary" : "text-danger")"></i>
-                                </div>
+                                        </div>
                                 <div class="flex-grow-1">
                                     <div class="fw-bold">@player.User.Username</div>
                                     <div class="d-flex justify-content-between">
                                         <span class="badge @(player.PlayerColor == "X" ? "bg-primary" : "bg-danger")">
                                             @player.PlayerColor
-                                        </span>
+                                                    </span>
                                         @if (player.IsReady)
                                         {
                                             <span class="badge bg-success">
@@ -160,41 +160,35 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    @{
-                        var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-                        var isOwner = Model.CreatedByUserId == currentUserId;
-                        var isParticipant = Model.Participants.Any(p => p.UserId == currentUserId);
-                    }
-                    
-                    @if (!isParticipant)
-                    {
-                        <button class="btn btn-success w-100 mb-2" onclick="joinRoom()">
-                            <i class="fas fa-sign-in-alt me-2"></i>Tham gia phòng
-                        </button>
-                    }
-                    else
-                    {
-                        @if (isOwner && Model.Status == RoomStatus.Waiting)
-                        {
-                            <button class="btn btn-primary w-100 mb-2" onclick="startGame()">
-                                <i class="fas fa-play me-2"></i>Bắt đầu game
-                            </button>
+                        @{
+                            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                            var isOwner = Model.CreatedByUserId == currentUserId;
+                            var isParticipant = Model.Participants.Any(p => p.UserId == currentUserId);
+                            var currentParticipant = Model.Participants.FirstOrDefault(p => p.UserId == currentUserId);
+                            var currentIsReady = currentParticipant?.IsReady ?? false;
                         }
-                        
-                        <button class="btn btn-warning w-100 mb-2" onclick="toggleReady()" id="readyBtn">
+
+                        <button id="joinBtn" class="btn btn-success w-100 mb-2" onclick="joinRoom()" style="display:@(isParticipant ? "none" : "block")">
+                            <i class="fas fa-sign-in-alt me-2"></i>Tham gia phòng
+                            </button>
+
+                        <button id="startBtn" class="btn btn-primary w-100 mb-2" onclick="startGame()" style="display:@(isParticipant && isOwner && Model.Status == RoomStatus.Waiting ? "block" : "none")">
+                            <i class="fas fa-play me-2"></i>Bắt đầu game
+                            </button>
+
+                        <button id="readyBtn" data-ready="@currentIsReady.ToString().ToLower()" class="@(currentIsReady ? "btn btn-secondary" : "btn btn-warning") w-100 mb-2" onclick="toggleReady()" style="display:@(isParticipant ? "block" : "none")">
                             <i class="fas fa-check me-2"></i>
-                            <span id="readyText">Sẵn sàng</span>
-                        </button>
-                        
-                        <button class="btn btn-danger w-100" onclick="leaveRoom()">
+                            <span id="readyText">@(currentIsReady ? "Hủy sẵn sàng" : "Sẵn sàng")</span>
+                            </button>
+
+                        <button id="leaveBtn" class="btn btn-danger w-100" onclick="leaveRoom()" style="display:@(isParticipant ? "block" : "none")">
                             <i class="fas fa-sign-out-alt me-2"></i>Rời phòng
-                        </button>
-                    }
+                            </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
+                                        </div>
+                                    </div>
 
 <!-- Password Modal -->
 <div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
@@ -205,12 +199,12 @@
                     <i class="fas fa-key me-2"></i>Nhập mật khẩu phòng
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
+                                </div>
             <div class="modal-body">
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
                     Phòng này yêu cầu mật khẩu để tham gia.
-                </div>
+                    </div>
                 <div class="mb-3">
                     <label for="roomPassword" class="form-label">Mật khẩu:</label>
                     <input type="password" class="form-control" id="roomPassword" placeholder="Nhập mật khẩu...">
@@ -237,116 +231,177 @@
         
         // SignalR connection
         let roomConnection;
+        let roomHubInitialized = false; // prevent multiple subscriptions
+        let updateParticipantsTimeout = null; // debounce
+        let isUpdatingParticipants = false; // concurrency guard
         
-        // Initialize SignalR
+        // Initialize SignalR with enhanced real-time handling
         async function initializeSignalR() {
             try {
+                if (roomHubInitialized) return;
                 roomConnection = new signalR.HubConnectionBuilder()
                     .withUrl("/roomHub")
-                    .withAutomaticReconnect()
+                    .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
                     .build();
                 
-                // Join room group
                 await roomConnection.start();
+                
+                // Join room group
                 await roomConnection.invoke("JoinRoom", roomId);
                 
-                // Listen for events
+                // Listen for room events (ensure single subscription)
+                roomConnection.off("UserJoinedRoom");
                 roomConnection.on("UserJoinedRoom", (userId, roomId) => {
                     console.log(`User ${userId} joined room ${roomId}`);
-                    // Update participant list without reloading
-                    updateParticipantList();
+                    showToast('success', 'Có người chơi mới tham gia phòng!');
+                    scheduleUpdateParticipantList();
                 });
                 
+                roomConnection.off("UserLeftRoom");
                 roomConnection.on("UserLeftRoom", (userId, roomId) => {
                     console.log(`User ${userId} left room ${roomId}`);
-                    // Update participant list without reloading
-                    updateParticipantList();
+                    showToast('warning', 'Có người chơi rời phòng!');
+                    scheduleUpdateParticipantList();
                 });
                 
+                roomConnection.off("PlayerReadyStatusChanged");
                 roomConnection.on("PlayerReadyStatusChanged", (data) => {
                     console.log("Player ready status changed:", data);
-                    updatePlayerReadyStatus(data.userId, data.isReady);
+                    
+                    // If it's me, only ensure my button state is correct; UI row will be updated by list refresh
+                    if (data.userId === currentUserId) {
+                        const btn = document.getElementById('readyBtn');
+                        if (btn) btn.setAttribute('data-ready', String(data.isReady));
+                } else {
+                        // Update specific player's badge for others
+                        updatePlayerReadyStatus(data.userId, data.isReady);
+                    }
+                    
+                    // Update full participant list for consistency
+                    scheduleUpdateParticipantList(400);
+                    
+                    // Show notification for other players
+                    if (data.userId !== currentUserId) {
+                        const status = data.isReady ? 'sẵn sàng' : 'chưa sẵn sàng';
+                        showToast('info', `Người chơi đã thay đổi trạng thái: ${status}`);
+                    }
                 });
                 
                 roomConnection.on("GameStarted", (data) => {
                     console.log("Game started:", data);
-                    // Auto redirect to game room
+                    showToast('success', 'Game đã bắt đầu! Chuyển hướng...');
+                    
+                    // Auto-redirect to game room
                     setTimeout(() => {
                         window.location.href = `/Game/Room/${data.gameId}`;
-                    }, 1000);
+                    }, 1500);
                 });
                 
                 roomConnection.on("Error", (message) => {
                     console.error("SignalR Error:", message);
+                    showToast('error', 'Lỗi kết nối real-time!');
+                });
+                
+                roomConnection.onreconnecting(() => {
+                    console.log("SignalR reconnecting...");
+                    showToast('warning', 'Đang kết nối lại...');
+                });
+                
+                roomConnection.onreconnected(() => {
+                    console.log("SignalR reconnected");
+                    showToast('success', 'Đã kết nối lại thành công!');
+                    scheduleUpdateParticipantList(200);
                 });
                 
                 console.log("SignalR connected to RoomHub");
+                roomHubInitialized = true;
             } catch (err) {
                 console.error("SignalR connection failed:", err);
+                showToast('error', 'Không thể kết nối real-time!');
             }
         }
         
+        // Debounced list refresh
+        function scheduleUpdateParticipantList(delay = 0) {
+            if (updateParticipantsTimeout) clearTimeout(updateParticipantsTimeout);
+            updateParticipantsTimeout = setTimeout(() => updateParticipantList(), delay);
+        }
+
         // Update participant list from server
         async function updateParticipantList() {
+            if (isUpdatingParticipants) return;
             try {
                 console.log('Updating participant list for room:', roomId);
+                isUpdatingParticipants = true;
                 const response = await fetch(`/Room/GetParticipants?roomId=${roomId}`);
                 const data = await response.json();
                 
                 console.log('GetParticipants response:', data);
                 
-                if (data.success) {
+                    if (data.success) {
                     updateParticipantsUI(data.participants);
                 } else {
                     console.error('Failed to get participants:', data.message);
                 }
             } catch (error) {
                 console.error('Error updating participant list:', error);
+            } finally {
+                isUpdatingParticipants = false;
             }
         }
 
-        // Update participants UI
+        // Update participants UI with real-time animations (show name and X/O only)
         function updateParticipantsUI(participants) {
-            const container = document.getElementById('participantsContainer');
+            const container = document.getElementById('playersContainer');
             if (!container) return;
 
             console.log('Updating participants UI with:', participants);
 
             let html = '';
             participants.forEach(participant => {
-                const isOwner = participant.isOwner;
                 const isReady = participant.isReady;
                 const isCurrentUser = participant.userId === currentUserId;
-                
-                console.log(`Participant ${participant.username}: isReady=${isReady}, isCurrentUser=${isCurrentUser}`);
-                
-                const ownerBadge = isOwner ? '<span class="badge bg-primary me-1">Chủ phòng</span>' : '';
+                const colorBadge = `<span class=\"badge ${participant.playerColor === 'X' ? 'bg-primary' : 'bg-danger'}\">${participant.playerColor}</span>`;
                 const readyBadge = isReady ? 
-                    '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Sẵn sàng</span>' :
+                    '<span class="badge bg-success animate__animated animate__pulse"><i class="fas fa-check me-1"></i>Sẵn sàng</span>' :
                     '<span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Chưa sẵn sàng</span>';
-                
+
+                const participantClass = isCurrentUser ? 'border-primary bg-light animate__animated animate__fadeIn' : 'animate__animated animate__fadeIn';
+
                 html += `
-                    <div class="participant-item mb-2 p-2 border rounded ${isCurrentUser ? 'border-primary bg-light' : ''}" data-player-id="${participant.userId}">
+                    <div class="participant-item mb-2 p-2 border rounded ${participantClass}" data-player-id="${participant.userId}">
                         <div class="d-flex align-items-center">
                             <div class="me-2">
-                                <i class="fas fa-user-circle text-primary"></i>
+                                <i class="fas fa-user-circle ${isCurrentUser ? 'text-primary' : 'text-secondary'}"></i>
                             </div>
                             <div class="flex-grow-1">
                                 <div class="fw-bold">${participant.username}</div>
-                                <div class="d-flex justify-content-between">
-                                    ${ownerBadge}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    ${colorBadge}
                                     ${readyBadge}
                                 </div>
                             </div>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
             
-            container.innerHTML = html;
+            // Add fade out effect before updating
+            container.style.opacity = '0.5';
+            container.style.transition = 'opacity 0.3s ease';
             
-            // Update room actions after UI is updated
-            setTimeout(() => updateRoomActions(), 100);
+            setTimeout(() => {
+                container.innerHTML = html;
+                container.style.opacity = '1';
+                
+                // Update room actions after UI is updated
+                updateRoomActions();
+                
+                // Update current user's ready button if they're in the list
+                const currentUserParticipant = participants.find(p => p.userId === currentUserId);
+                if (currentUserParticipant) {
+                    updateReadyButtonUI(currentUserParticipant.isReady);
+                }
+            }, 150);
         }
 
         // Update room actions (join/leave buttons)
@@ -394,38 +449,36 @@
             }
         }
 
-        // Update player ready status in UI
+        // Update player ready status in UI with animations
         function updatePlayerReadyStatus(userId, isReady) {
             const playerItem = document.querySelector(`[data-player-id="${userId}"]`);
             if (playerItem) {
                 const badge = playerItem.querySelector('.badge:last-child');
                 if (badge) {
+                    // Add animation class
+                    badge.classList.add('animate__animated', 'animate__pulse');
+                    
                     if (isReady) {
-                        badge.className = 'badge bg-success';
+                        badge.className = 'badge bg-success animate__animated animate__pulse';
                         badge.innerHTML = '<i class="fas fa-check me-1"></i>Sẵn sàng';
                     } else {
-                        badge.className = 'badge bg-warning text-dark';
+                        badge.className = 'badge bg-warning text-dark animate__animated animate__pulse';
                         badge.innerHTML = '<i class="fas fa-clock me-1"></i>Chưa sẵn sàng';
                     }
+                    
+                    // Remove animation class after animation completes
+            setTimeout(() => {
+                        badge.classList.remove('animate__animated', 'animate__pulse');
+                    }, 1000);
                 }
             }
             
             // Update current user's ready button if it's them
             if (userId === currentUserId) {
-                const readyBtn = document.getElementById('readyBtn');
-                const readyText = document.getElementById('readyText');
-                if (readyBtn && readyText) {
-                    if (isReady) {
-                        readyText.textContent = 'Hủy sẵn sàng';
-                        readyBtn.className = 'btn btn-secondary w-100 mb-2';
-                    } else {
-                        readyText.textContent = 'Sẵn sàng';
-                        readyBtn.className = 'btn btn-warning w-100 mb-2';
-                    }
-                }
+                updateReadyButtonUI(isReady);
             }
         }
-        
+
         // Join room
         function joinRoom() {
             // Kiểm tra xem phòng có cần mật khẩu không
@@ -536,7 +589,7 @@
                 }, 1000);
             }
         });
-        
+
         // Start game
         function startGame() {
             fetch('/Room/StartGame', {
@@ -551,7 +604,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    window.location.href = data.redirectUrl;
+                            window.location.href = data.redirectUrl;
                 } else {
                     alert(data.message);
                 }
@@ -562,26 +615,21 @@
             });
         }
         
-        // Toggle ready status
+        // Toggle ready status - Real-time version
         function toggleReady() {
             const readyBtn = document.getElementById('readyBtn');
             const readyText = document.getElementById('readyText');
-            const isReady = readyText.textContent === 'Sẵn sàng';
+            const currentReady = readyBtn.getAttribute('data-ready') === 'true';
             
-            console.log('toggleReady called, current state:', isReady);
+            console.log('toggleReady called, current state:', currentReady);
             
             // Disable button temporarily to prevent double-click
             readyBtn.disabled = true;
             
             // Update UI immediately for better UX
-            const newIsReady = !isReady;
-            if (newIsReady) {
-                readyText.textContent = 'Hủy sẵn sàng';
-                readyBtn.className = 'btn btn-secondary w-100 mb-2';
-            } else {
-                readyText.textContent = 'Sẵn sàng';
-                readyBtn.className = 'btn btn-warning w-100 mb-2';
-            }
+            const newIsReady = !currentReady;
+            updateReadyButtonUI(newIsReady);
+            readyBtn.setAttribute('data-ready', String(newIsReady));
             
             fetch('/Room/SetReady', {
                 method: 'POST',
@@ -597,43 +645,63 @@
             .then(data => {
                 console.log('SetReady response:', data);
                 if (data.success) {
-                    // Update participant list to reflect the change
-                    setTimeout(() => {
-                        updateParticipantList();
-                    }, 200);
-                    
-                    // Force update participant list again after a delay to ensure it's updated
-                    setTimeout(() => {
-                        updateParticipantList();
-                    }, 1000);
+                    // Rely on SignalR broadcast to refresh; avoid double updates
+                    // Show success toast
+                    showToast('success', 'Cập nhật trạng thái thành công!');
                 } else {
                     // Revert UI if server request failed
-                    if (isReady) {
-                        readyText.textContent = 'Hủy sẵn sàng';
-                        readyBtn.className = 'btn btn-secondary w-100 mb-2';
-                    } else {
-                        readyText.textContent = 'Sẵn sàng';
-                        readyBtn.className = 'btn btn-warning w-100 mb-2';
-                    }
-                    alert(data.message);
+                    updateReadyButtonUI(currentReady);
+                    readyBtn.setAttribute('data-ready', String(currentReady));
+                    showToast('error', data.message || 'Có lỗi xảy ra!');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 // Revert UI if request failed
-                if (isReady) {
-                    readyText.textContent = 'Hủy sẵn sàng';
-                    readyBtn.className = 'btn btn-secondary w-100 mb-2';
-                } else {
-                    readyText.textContent = 'Sẵn sàng';
-                    readyBtn.className = 'btn btn-warning w-100 mb-2';
-                }
-                alert('Có lỗi xảy ra!');
+                updateReadyButtonUI(currentReady);
+                readyBtn.setAttribute('data-ready', String(currentReady));
+                showToast('error', 'Có lỗi xảy ra khi kết nối server!');
             })
             .finally(() => {
                 // Re-enable button
                 readyBtn.disabled = false;
             });
+        }
+        
+        // Update ready button UI
+        function updateReadyButtonUI(isReady) {
+            const readyBtn = document.getElementById('readyBtn');
+            const readyText = document.getElementById('readyText');
+            
+            if (isReady) {
+                readyText.textContent = 'Hủy sẵn sàng';
+                readyBtn.className = 'btn btn-secondary w-100 mb-2';
+            } else {
+                readyText.textContent = 'Sẵn sàng';
+                readyBtn.className = 'btn btn-warning w-100 mb-2';
+            }
+        }
+        
+        // Show toast notification
+        function showToast(type, message) {
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check' : 'exclamation-triangle'} me-2"></i>
+                <strong>${type === 'success' ? 'Thành công!' : 'Lỗi!'}</strong>
+                <br>
+                <small>${message}</small>
+                <button type="button" class="btn-close ms-2" onclick="this.parentElement.remove()"></button>
+            `;
+            document.body.appendChild(toast);
+            
+            // Remove toast after 3 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 3000);
         }
         
         // Leave room
@@ -669,18 +737,20 @@
             
             if (isParticipant) {
                 const participant = @Html.Raw(Json.Serialize(Model.Participants.FirstOrDefault(p => p.UserId == currentUserId)));
-                if (participant && participant.isReady) {
-                    const readyBtn = document.getElementById('readyBtn');
-                    const readyText = document.getElementById('readyText');
-                    readyText.textContent = 'Hủy sẵn sàng';
-                    readyBtn.className = 'btn btn-secondary w-100 mb-2';
+                const readyBtnEl = document.getElementById('readyBtn');
+                if (readyBtnEl) {
+                    const initialReady = !!(participant && participant.isReady);
+                    readyBtnEl.setAttribute('data-ready', String(initialReady));
+                    updateReadyButtonUI(initialReady);
                 }
             }
             
-            // Initial update of participant list and room actions
+            // Initial update of room actions; only refresh list if already participant
             setTimeout(() => {
-                updateParticipantList();
                 updateRoomActions();
+                if (isParticipant === 'true') {
+                    updateParticipantList();
+                }
             }, 500);
         });
     </script>
@@ -693,5 +763,64 @@
     
     .player-item:hover {
         background-color: #f8f9fa;
+    }
+    
+    /* Animation classes */
+    .animate__animated {
+        animation-duration: 0.6s;
+        animation-fill-mode: both;
+    }
+    
+    .animate__pulse {
+        animation-name: pulse;
+    }
+    
+    .animate__fadeIn {
+        animation-name: fadeIn;
+    }
+    
+    @@keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+    
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Toast notifications */
+    .alert.position-fixed {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border: none;
+        border-radius: 8px;
+    }
+    
+    /* Ready button transitions */
+    .btn {
+        transition: all 0.3s ease;
+    }
+    
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    /* Participant list transitions */
+    #playersContainer {
+        transition: opacity 0.3s ease;
     }
 </style>

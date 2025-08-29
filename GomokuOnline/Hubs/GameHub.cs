@@ -12,16 +12,19 @@ namespace GomokuOnline.Hubs
     {
         private readonly IGameRepository _gameRepository;
         private readonly IUserRepository _userRepository;
+        private readonly Data.GomokuDbContext _dbContext;
         private readonly ILogger<GameHub> _logger;
 
         public GameHub(
             IGameRepository gameRepository,
             IUserRepository userRepository,
-            ILogger<GameHub> logger)
+            ILogger<GameHub> logger,
+            Data.GomokuDbContext dbContext)
         {
             _gameRepository = gameRepository;
             _userRepository = userRepository;
             _logger = logger;
+            _dbContext = dbContext;
         }
 
         public override async Task OnConnectedAsync()
@@ -149,10 +152,11 @@ namespace GomokuOnline.Hubs
                 }
 
                 // Create move
+                var actorUserId = userId.Value;
                 var move = new Move
                 {
                     GameId = gameId,
-                    UserId = userId.Value,
+                    UserId = actorUserId,
                     Row = row,
                     Column = column,
                     MoveNumber = game.Moves.Count + 1,
@@ -312,13 +316,44 @@ namespace GomokuOnline.Hubs
                 return;
             }
 
-            await Clients.Group($"game_{gameId}").SendAsync("MessageReceived", new
+            try
             {
-                gameId,
-                userId,
-                message = message.Trim(),
-                timestamp = DateTime.UtcNow
-            });
+                var game = await _gameRepository.GetGameWithDetailsAsync(gameId);
+                if (game == null)
+                {
+                    await Clients.Caller.SendAsync("Error", "Game not found");
+                    return;
+                }
+
+                var trimmed = message.Trim();
+                var senderId = userId.GetValueOrDefault();
+                var chat = new ChatMessage
+                {
+                    UserId = senderId,
+                    GameRoomId = game.GameRoomId,
+                    Content = trimmed,
+                    CreatedAt = DateTime.UtcNow,
+                    Type = MessageType.Text
+                };
+                _dbContext.ChatMessages.Add(chat);
+                await _dbContext.SaveChangesAsync();
+
+                var user = await _userRepository.GetByIdAsync(senderId);
+
+                await Clients.Group($"game_{gameId}").SendAsync("MessageReceived", new
+                {
+                    gameId,
+                    userId = senderId,
+                    username = user?.Username ?? $"User {senderId}",
+                    message = trimmed,
+                    timestamp = chat.CreatedAt
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving chat message for game {GameId}", gameId);
+                await Clients.Caller.SendAsync("Error", "Failed to send message");
+            }
         }
 
         private int? GetCurrentUserId()

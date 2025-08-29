@@ -424,7 +424,7 @@ namespace GomokuOnline.Controllers
                 var participants = await _context.GameParticipants
                     .Include(p => p.User)
                     .Include(p => p.GameRoom)
-                    .Where(p => p.GameRoomId == roomId && p.LeftAt == null)
+                    .Where(p => p.GameRoomId == roomId && p.LeftAt == null && p.Type == ParticipantType.Player)
                     .OrderBy(p => p.PlayerOrder)
                     .Select(p => new
                     {

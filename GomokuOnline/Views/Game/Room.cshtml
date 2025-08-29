@@ -39,11 +39,11 @@
                     <div class="row text-center mb-3">
                         <div class="col-3">
                             <h6 class="text-primary">@Model.BoardSize</h6>
-                            <small class="text-muted">Bàn cờ</small>
+                                <small class="text-muted">Bàn cờ</small>
                         </div>
                         <div class="col-3">
                             <h6 class="text-success">@Model.WinCondition</h6>
-                            <small class="text-muted">Thắng</small>
+                                <small class="text-muted">Thắng</small>
                         </div>
                         <div class="col-3">
                             <h6 class="text-info">@Model.TotalMoves</h6>
@@ -51,14 +51,14 @@
                         </div>
                         <div class="col-3">
                             <h6 class="text-warning" id="turnIndicator">
-                                @if (User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.CurrentTurnUserId?.ToString())
-                                {
-                                    <span>Lượt của bạn</span>
-                                }
-                                else
-                                {
-                                    <span>Lượt đối thủ</span>
-                                }
+                                    @if (User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.CurrentTurnUserId?.ToString())
+                                    {
+                                        <span>Lượt của bạn</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Lượt đối thủ</span>
+                                    }
                             </h6>
                             <small class="text-muted">Trạng thái</small>
                         </div>
@@ -74,17 +74,17 @@
                     </div>
 
                     <!-- Game Controls -->
-                    @if (Model.Status == GameStatus.InProgress)
-                    {
+                        @if (Model.Status == GameStatus.InProgress)
+                        {
                         <div class="text-center mt-3">
                             <button type="button" class="btn btn-outline-warning me-2" onclick="surrender()">
                                 <i class="fas fa-flag me-1"></i>Đầu hàng
-                            </button>
-                            <button type="button" class="btn btn-outline-info" onclick="requestDraw()">
+                                </button>
+                                <button type="button" class="btn btn-outline-info" onclick="requestDraw()">
                                 <i class="fas fa-handshake me-1"></i>Xin hòa
-                            </button>
-                        </div>
-                    }
+                                </button>
+                            </div>
+                        }
                 </div>
             </div>
         </div>
@@ -127,6 +127,24 @@
                             </div>
                         </div>
                     }
+                </div>
+            </div>
+
+            <!-- Chat -->
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-comments me-2"></i>Trò chuyện
+                    </h6>
+                </div>
+                <div class="card-body p-0 d-flex flex-column" style="height: 260px;">
+                    <div id="chatMessages" class="p-2 flex-grow-1 overflow-auto" style="background:#f8f9fa;"></div>
+                    <div class="p-2 border-top d-flex gap-2">
+                        <input id="chatInput" class="form-control" type="text" placeholder="Nhập tin nhắn..." maxlength="500" />
+                        <button id="chatSend" class="btn btn-success" type="button" onclick="sendChat()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                    </div>
                 </div>
             </div>
 
@@ -186,6 +204,18 @@
             updateBoardInteraction(); // Set initial board state
             initializeSignalR();
             startRealTimeUpdates();
+            loadChatHistory();
+
+            // Gửi chat bằng phím Enter
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) {
+                chatInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        sendChat();
+                    }
+                });
+            }
         });
         
         // Initialize SignalR
@@ -208,12 +238,70 @@
                 gameConnection.on("GameEnded", (data) => {
                     handleGameEnded(data);
                 });
+
+                // Chat events
+                gameConnection.on("MessageReceived", (msg) => {
+                    if (msg.gameId !== gameId) return;
+                    appendChatMessage(msg.userId, msg.message, msg.timestamp, msg.username);
+                });
                 
                 gameConnection.on("Error", (message) => {
                     console.error("SignalR Error:", message);
                 });
             } catch (err) {
                 console.error("SignalR connection failed:", err);
+            }
+        }
+
+        // Send chat
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const text = (input?.value || '').trim();
+            if (!text) return;
+            try {
+                if (gameConnection && gameConnection.state === signalR.HubConnectionState.Connected) {
+                    await gameConnection.invoke('SendMessage', gameId, text);
+                    input.value = '';
+                }
+            } catch (e) {
+                console.error('Send chat failed', e);
+            }
+        }
+
+        // Render chat message
+        function appendChatMessage(userId, message, timestamp, username = null) {
+            const box = document.getElementById('chatMessages');
+            if (!box) return;
+            const isMine = String(userId) === String(CURRENT_USER_ID);
+            const item = document.createElement('div');
+            item.className = `chat-item p-1 ${isMine ? 'text-end' : ''}`;
+            const time = new Date(timestamp).toLocaleTimeString();
+            item.innerHTML = `
+                <small class="${isMine ? 'text-primary' : 'text-dark'}">
+                    <span class="fw-bold">${isMine ? 'Bạn' : (username || 'Đối thủ')}</span> · ${time}
+                </small>
+                <div class="px-2 py-1 mt-1 rounded ${isMine ? 'bg-primary text-white' : 'bg-white border'}" style="display:inline-block; max-width: 90%; word-break: break-word;">
+                    ${escapeHtml(message)}
+                </div>
+            `;
+            box.appendChild(item);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function escapeHtml(s) {
+            return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        }
+
+        async function loadChatHistory() {
+            try {
+                const res = await fetch(`/Game/GetChatMessages?gameId=${gameId}&take=50`);
+                const data = await res.json();
+                if (data.success) {
+                    const list = data.messages || [];
+                    list.forEach(m => appendChatMessage(m.userId, m.message, m.timestamp, m.username));
+                }
+            } catch (e) {
+                console.error('Load chat history failed', e);
             }
         }
         
@@ -232,7 +320,7 @@
                 CURRENT_TURN_USER_ID = data.currentTurnUserId;
                 isMyTurn = CURRENT_USER_ID === CURRENT_TURN_USER_ID;
                 
-                updateTurnIndicator();
+            updateTurnIndicator();
                 updatePlayersTurn(CURRENT_TURN_USER_ID);
                 
                 // Update total moves
@@ -440,7 +528,7 @@
                 // Send move via SignalR
                 if (gameConnection && gameConnection.state === signalR.HubConnectionState.Connected) {
                     await gameConnection.invoke("MakeMove", gameId, row, col);
-                } else {
+            } else {
                     // Fallback to HTTP if SignalR not connected
                     const response = await fetch('/Game/MakeMove', {
                         method: 'POST',
@@ -507,7 +595,7 @@
                 }
             }
         }
-        
+
         // Update board interaction based on turn
         function updateBoardInteraction() {
             const boardContainer = document.getElementById('gameBoard');
@@ -553,7 +641,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <small class="fw-bold">${username || (symbol === 'X' ? 'Người chơi X' : 'Người chơi O')}</small><br>
-                        <small class="text-muted">(${row}, ${col}) - ${symbol}</small>
+                            <small class="text-muted">(${row}, ${col}) - ${symbol}</small>
                     </div>
                     <small class="text-muted">${new Date().toLocaleTimeString()}</small>
                 </div>
